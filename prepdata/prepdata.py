@@ -382,36 +382,5 @@ def write_list_files(inputpath,ext,outputfile):
         myoutput.write(mytiles[i]+'\n')
     myoutput.close()
 
-def outflows_from_dirs(srcdir,foutput):
-
-    mytiles = listdir(srcdir,'.tif')
-
-    w = sf.Writer(sf.POINT)
-    w.field('x')
-    w.field('y')
-
-    for i in range(len(mytiles)):
-        print mytiles[i]
-        dat   = get_gdal_data(mytiles[i])
-        geo   = get_gdal_geo(mytiles[i])
-        iy,ix = np.where(dat==0)
-        x     = geo[8][ix]
-        y     = geo[9][iy]
-
-        if len(x)>0:
-            for j in range(len(x)):
-                w.point(x[j],y[j])
-                w.record(x[j],y[j])
-
-    w.save("%s.shp" % foutput)
-
-    proj = '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs'
-    # write .prj file
-    prj = open("%s.prj" % foutput, "w")
-    srs = osr.SpatialReference()
-    srs.ImportFromProj4(proj)
-    prj.write(srs.ExportToWkt())
-    prj.close()
-
 if __name__ == '__main__':
     prepdata(sys.argv[1:])

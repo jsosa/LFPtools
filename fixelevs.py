@@ -5,7 +5,10 @@
 # date: 21/apr/2017
 # mail: sosa.jeison@gmail.com / j.sosa@bristol.ac.uk
 
-import os,sys,getopt,subprocess
+import os
+import sys
+import getopt
+import subprocess
 import ConfigParser
 import numpy as np
 import shapefile
@@ -16,8 +19,7 @@ from gdal_utils import *
 from scipy.spatial.distance import cdist
 from collections import defaultdict
 
-import pdb
-# pdb.set_trace()
+import pdb # pdb.set_trace()
 
 def fixelevs(argv):
 

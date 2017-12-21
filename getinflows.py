@@ -42,8 +42,8 @@ def getinflows(argv):
     w = sf.Writer(sf.POINT)
     w.field('x')
     w.field('y')
-    w.field('inflow')
     w.field('linkno')
+    w.field('inflow')
 
     # loading coord and tree files
     coord_df = read_coord(coordf)
@@ -111,10 +111,25 @@ def getinflows(argv):
                 firstlat = lats[j+1]
                 firstlon = lons[j+1]
 
+    # create a pandas dataframe
+    d  = {'x': mylon, 'y':mylat, 'linkno': mylno,}
+    df = pd.DataFrame(data=d, index=range(len(mylno)))
+
+    # clean links
+    grouped = df.groupby('linkno')
+
+    df_new = pd.DataFrame()
+    for name,group in grouped:
+        if group['linkno'].size >= 3:
+            df_new = pd.concat((df_new,group))
+
+    # final dataframe
+    df_new = df_new.reset_index(drop=True)
+
     # write coordinate points in shapefile
-    for i in range(len(mylon)):
-        w.point(mylon[i],mylat[i])
-        w.record(mylon[i],mylat[i],mylno[i],i)
+    for i in range(df_new['linkno'].size):
+        w.point(df_new['x'][i],df_new['y'][i])
+        w.record(df_new['x'][i],df_new['y'][i],df_new['linkno'][i],df_new.index.values[i])
     w.save("%s.shp" % fname)
 
     # write .prj file
