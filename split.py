@@ -5,16 +5,46 @@
 # date: 26/jun/2017
 # mail: j.sosa@bristol.ac.uk / sosa.jeison@gmail.com
 
-import os,sys,getopt
+import os
+import sys
+import getopt
 import ConfigParser
-from gdal_utils import *
-from scipy.spatial.distance import cdist
-from scipy.ndimage import distance_transform_edt
-
-import pdb
-# pdb.set_trace()
+import numpy as np
+import pandas as pd
+import gdal_utils
+import misc_utils
 
 def split(argv):
+    
+    """
+    Split area by catchments
+
+    Parameters
+    ----------
+
+    basnum : basin number
+    cattif : catchment file masking every catchment
+    demtif : DEM
+    acctif : accumulation
+    nettif : river network
+    wthtif : river width
+    dirtif : direction
+    tretxt : tree file
+    cootxt : coordinates file
+    outdir : output directory
+
+    Returns
+    -------
+
+    XXX_dem.tif : DEM
+    XXX_net.tif : river network mask
+    XXX_wth.tif : river width
+    XXX_acc.tif : accumulation
+    XXX_dir.tif : direction
+    XXX_tre.csv : tree file
+    XXX_coo.csv : coordinates dile
+    XXX_rec.csv : summary file
+    """
 
     opts, args = getopt.getopt(argv,"i:")
     for o, a in opts:
@@ -22,288 +52,195 @@ def split(argv):
     config = ConfigParser.SafeConfigParser()
     config.read(inifile)
 
-    basinnum  = str(config.get('split','basinnum'))
-    dem3fil   = str(config.get('split','dem3fil'))
-    dir3fil   = str(config.get('split','dir3fil'))
-    acc3fil   = str(config.get('split','acc3fil'))
-    net3fil   = str(config.get('split','net3fil'))
-    net30fil  = str(config.get('split','net30fil'))
-    dir30fil  = str(config.get('split','dir30fil'))
-    tre30fil  = str(config.get('split','tre30fil'))
-    coo30fil  = str(config.get('split','coo30fil'))
-    cat30fil  = str(config.get('split','cat30fil'))
-    outdirfil = str(config.get('split','outdirfil'))
+    basnum = str(config.get('split','basnum'))
+    cattif = str(config.get('split','cattif'))
+    demtif = str(config.get('split','demtif'))
+    acctif = str(config.get('split','acctif'))
+    nettif = str(config.get('split','nettif'))
+    wthtif = str(config.get('split','wthtif'))
+    dirtif = str(config.get('split','dirtif'))
+    tretxt = str(config.get('split','tretxt'))
+    cootxt = str(config.get('split','cootxt'))
+    outdir = str(config.get('split','outdir'))
 
-    # loading data
-    cat30geo = get_gdal_geo(cat30fil)
-    cat30dat = get_gdal_data(cat30fil)
+    # Loading data
+    catarr = gdal_utils.get_gdal_data(cattif)
 
-    ### CLIP INPUT MAPS PER CATCHMENT
-    
-    if basinnum == "all":
-
-        # loop over all catchment numbers
-        for nc in np.unique(cat30dat[cat30dat>0]): # catchments should be numbered >0
-            print "split.py - " + str(np.max(cat30dat)-nc)
-            basinsplit(nc,outdirfil,cat30geo,cat30dat,dem3fil,acc3fil,net3fil,net30fil,dir3fil,dir30fil,cat30fil,coo30fil,tre30fil)
+    # Clip input maps per catchment
+    if basnum == "all":
+        # Loop over all catchment numbers
+        for nc in np.unique(catarr[catarr>0]): # Catchments should be numbered and > 0
+            print "split.py - " + str(np.max(catarr)-nc)
     else:
-        # process a single catchment
-        print "split.py - 1"
-        basinsplit(int(basinnum),outdirfil,cat30geo,cat30dat,dem3fil,acc3fil,net3fil,net30fil,dir3fil,dir30fil,cat30fil,coo30fil,tre30fil)
+        # Process a single catchment
+        print "split.py - " + basnum
+        basinsplit(np.int(basnum),outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,tretxt,cootxt)
 
-def basinsplit(ncatch,outdirfil,cat30geo,cat30dat,dem3fil,acc3fil,net3fil,net30fil,dir3fil,dir30fil,cat30fil,coo30fil,tre30fil):
 
+def basinsplit(ncatch,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,tretxt,cootxt):
+    
+    # Create basin folder
     ncatchstr = "%03d" % ncatch
-
-    # create basin folder
-    folder = outdirfil + "/" + ncatchstr
+    folder = outdir + "/" + ncatchstr
     try:
         os.makedirs(folder)
     except OSError:
         if not os.path.isdir(folder):
             raise
 
-    row,col = np.where(cat30dat==ncatch) # get two vectors specifying index where clausule is valid
+    # Get extend for every catchment
+    catarr  = gdal_utils.get_gdal_data(cattif)
+    catgeo  = gdal_utils.get_gdal_geo(cattif)
+    row,col = np.where(catarr==ncatch)
+    xmin    = catgeo[8][min(col)]
+    xmax    = catgeo[8][max(col)]
+    ymin    = catgeo[9][max(row)]
+    ymax    = catgeo[9][min(row)]
 
-    # This threshold produce an extra pixel after the outlet of the river!
-    # xmin = cat30geo[8][min(col)] - 0.01
-    # xmax = cat30geo[8][max(col)] + 0.01
-    # ymin = cat30geo[9][max(row)] - 0.01
-    # ymax = cat30geo[9][min(row)] + 0.01
+    # Clip input rasters
+    demarrcli,demgeocli = gdal_utils.clip_raster(demtif,xmin,ymin,xmax,ymax)
+    accarrcli,accgeocli = gdal_utils.clip_raster(acctif,xmin,ymin,xmax,ymax)
+    netarrcli,netgeocli = gdal_utils.clip_raster(nettif,xmin,ymin,xmax,ymax)
+    wtharrcli,wthgeocli = gdal_utils.clip_raster(wthtif,xmin,ymin,xmax,ymax)
+    dirarrcli,dirgeocli = gdal_utils.clip_raster(dirtif,xmin,ymin,xmax,ymax)
+    catarrcli,catgeocli = gdal_utils.clip_raster(cattif,xmin,ymin,xmax,ymax)
 
-    xmin = cat30geo[8][min(col)]
-    xmax = cat30geo[8][max(col)]
-    ymin = cat30geo[9][max(row)]
-    ymax = cat30geo[9][min(row)]
+    # Mask only the catchment and fill with zeros
+    netarrcli = np.where(catarrcli==ncatch,netarrcli,0)
+    dirarrcli = np.where(catarrcli==ncatch,dirarrcli,0)
 
-    dem3datcli,dem3geocli   = clip_raster(dem3fil,xmin,ymin,xmax,ymax)
-    acc3datcli,acc3geocli   = clip_raster(acc3fil,xmin,ymin,xmax,ymax)
-    dir3datcli,dir3geocli   = clip_raster(dir3fil,xmin,ymin,xmax,ymax)
-    net3datcli,net3geocli   = clip_raster(net3fil,xmin,ymin,xmax,ymax)
-    net30datcli,net30geocli = clip_raster(net30fil,xmin,ymin,xmax,ymax)
-    dir30datcli,dir30geocli = clip_raster(dir30fil,xmin,ymin,xmax,ymax)
-    cat30datcli,cat30geocli = clip_raster(cat30fil,xmin,ymin,xmax,ymax)
-
-    # mask only the catchment
-
+    # Creating output names
+    fnamedem = folder + "/" + ncatchstr +"_dem.tif"
+    fnameacc = folder + "/" + ncatchstr +"_acc.tif"
+    fnamenet = folder + "/" + ncatchstr +"_net.tif"
+    fnamewth = folder + "/" + ncatchstr +"_wth.tif"
+    fnamedir = folder + "/" + ncatchstr +"_dir.tif"
+    
+    # Writing clipped arrays
     nodata = -9999
+    gdal_utils.writeRaster(demarrcli,fnamedem,demgeocli,"Float32",nodata)
+    gdal_utils.writeRaster(accarrcli,fnameacc,accgeocli,"Float32",nodata)
+    gdal_utils.writeRaster(netarrcli,fnamenet,netgeocli,"Float32",nodata)
+    gdal_utils.writeRaster(wtharrcli,fnamewth,wthgeocli,"Float32",nodata)
+    gdal_utils.writeRaster(dirarrcli,fnamedir,dirgeocli,"Float32",nodata)
+
+    # Clipping tree and coord files based on nettif > 0, coordinates
+    tree = misc_utils.read_tree_taudem(tretxt)
+    coor = misc_utils.read_coord_taudem(cootxt)
+    iy,ix = np.where(netarrcli > 0)
+    Xrav = netgeocli[8][ix]
+    Yrav = netgeocli[9][iy]
+
+    # Clipping coord file (it may be improved, calculation takes some time)
+    lfp_coor = pd.DataFrame()
+    for i in range(len(Xrav)):
+        dis,ind = misc_utils.near_euc(coor['lon'].values,coor['lat'].values,(Xrav[i],Yrav[i]))
+        if dis <= 0.01:
+            lfp_coor = lfp_coor.append(coor.loc[ind,:])
+    lfp_coor = lfp_coor[['lon','lat','distance','elev','contr_area']]
+    lfp_coor.index.name = 'index'
+    lfp_coor.sort_index(inplace=True)
+
+    # Clipping tree file
+    lfp_tree = pd.DataFrame()
+    for i in tree.index:
+        sta = tree.loc[i,'start_pnt']
+        end = tree.loc[i,'end_pnt']
+        lon1 = coor.loc[sta,'lon']
+        lat1 = coor.loc[sta,'lat']
+        lon2 = coor.loc[end,'lon']
+        lat2 = coor.loc[end,'lat']
+        dis1,ind1 = misc_utils.near_euc(lfp_coor['lon'].values,lfp_coor['lat'].values,(lon1,lat1))
+        dis2,ind2 = misc_utils.near_euc(lfp_coor['lon'].values,lfp_coor['lat'].values,(lon2,lat2))
+        if (dis1 <= 0.01) & (dis2 <= 0.01):
+            lfp_tree = lfp_tree.append(tree.loc[i,:])
+    lfp_tree = lfp_tree[['link_no','start_pnt','end_pnt','frst_ds','frst_us','scnd_us','strahler','mon_pnt','shreve']]
+    lfp_tree.index.name = 'index'
+
+    # Writing clipped coord and tree files
+    fnametre = folder + "/" + ncatchstr +"_tre.csv"
+    fnamecoo = folder + "/" + ncatchstr +"_coo.csv"
+    lfp_coor.to_csv(fnamecoo)
+    lfp_tree.to_csv(fnametre,float_format='%i')
+
+    # Creating XXX_rec.csv file
+    fnamerec = folder + "/" + ncatchstr +"_rec.csv"
+    connections(fnametre,fnamecoo,fnamerec)
+
+def connections(treef,coorf,outfile):
     
-    net30datcli = np.where(cat30datcli==ncatch,net30datcli,0)
-    dir30datcli = np.where(cat30datcli==ncatch,dir30datcli,0)
-
-    fnamedem3  = folder + "/" + ncatchstr +"_dem3.tif"
-    fnameacc3  = folder + "/" + ncatchstr +"_acc3.tif"
-    fnamedir3  = folder + "/" + ncatchstr +"_dir3.tif"
-    fnamenet3  = folder + "/" + ncatchstr +"_net3.tif"
-    fnamenet30 = folder + "/" + ncatchstr +"_net30.tif"
-    fnamedir30 = folder + "/" + ncatchstr +"_dir30.tif"
-
-    writeRaster(dem3datcli,fnamedem3,dem3geocli,"Float32",nodata)
-    writeRaster(acc3datcli,fnameacc3,acc3geocli,"Float32",nodata)
-    writeRaster(dir3datcli,fnamedir3,dir3geocli,"Float32",nodata)
-    writeRaster(net3datcli,fnamenet3,net3geocli,"Float32",nodata)
-    writeRaster(net30datcli,fnamenet30,net30geocli,"Float32",nodata)
-    writeRaster(dir30datcli,fnamedir30,cat30geocli,"Float32",nodata)
-
-    ### WRITE TREE.TXT FILE PER CATCHMENT ###
-
-    coord = np.genfromtxt(coo30fil, delimiter="\t")
-    coord = np.delete(coord,0,1) # remove first column, is an empty column
-    tree  = np.genfromtxt(tre30fil, delimiter="\t")
-    tree  = np.delete(tree,0,1) # remove first column, is an empty column
-
-    file = open(outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_tre.txt","w")
-
-    nlinks = 0
-    for i in range(tree.shape[0]):
-        
-        start = int(tree[i,1])
-        end   = int(tree[i,2])
-        lon1  = coord[start,0]
-        lat1  = coord[start,1]
-        lon2  = coord[end,0]
-        lat2  = coord[end,1]
-
-        indy,indx = np.where(net30datcli>0)
-        degx,degy = net30geocli[8][indx],net30geocli[9][indy]
-
-        if near(degx,degy,np.array([[lat1,lon1]])) < 0.01 and near(degx,degy,np.array([[lat2,lon2]])) < 0.01:
-            nlinks = nlinks + 1
-            file.write("%d"%tree[i,0]+" "+"%d"%tree[i,1]+" "+"%d"%tree[i,2]+" "+"%d"%tree[i,3]+" "+"%d"%tree[i,4]+"\n")
-
-    file.close()
-
-    ### WRITE COORD.TXT FILE PER CATCHMENT ###
-
-    # Check if tree links are inside the basin, this validation is required since we use the
-    # Euclidean distance of "0.1" to determine if a link is inside (from previous strep)
-    tree_cli = np.genfromtxt(outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_tre.txt", delimiter=" ")
-    file = open(outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_coo.txt","w")
-
-    file.write("lon"+" "+"lat"+"\n")
-    for itree in range(nlinks):
-
-        if nlinks == 1:
-            start = int(tree_cli[1])
-            end   = int(tree_cli[2]) + 1 # inclusive index
-        else:
-            start = int(tree_cli[itree,1])
-            end   = int(tree_cli[itree,2]) + 1 # inclusive index
-
-        lons  = coord[start:end,0]
-        lats  = coord[start:end,1]
-        
-        for ilons in range(lons.shape[0]):
-            file.write("%.8f"%lons[ilons]+" "+"%.8f"%lats[ilons]+"\n")
-    file.close()
-
-    ### WRITE INI FILES PER CATCHMENT ###
-
-    config = ConfigParser.RawConfigParser()
+    """
+    Finds connections between links and sort them
+    First finds the connections for all links, then sort them
+    starting from the link with more downstream connections, later
+    write separate files inclusing coordinates and links
+    """
     
-    # getinflows.py
-    config.add_section('getinflows')
-    config.set('getinflows', 'thresh', '4')
-    config.set('getinflows', 'output',  outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_inf")
-    config.set('getinflows', 'method', 'haversine')
-    config.set('getinflows', 'netf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_net30.tif")
-    config.set('getinflows', 'treef',   outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_tre.txt")
-    config.set('getinflows', 'coordf', '/Users/js16170/SOSA001/university_of_bristol/js16170/projects/euflood/dat/eu_coordd430s.txt')
-    config.set('getinflows', 'proj',   '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
-
-    # getwidths.py
-    config.add_section('getwidths')
-    config.set('getwidths', 'thresh', '0.01')
-    config.set('getwidths', 'output',  outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_wdt")
-    config.set('getwidths', 'method', 'near')
-    config.set('getwidths', 'netf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_net30.tif")
-    config.set('getwidths', 'proj',   '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
-    config.set('getwidths', 'fwidth', '/Users/js16170/SOSA001/university_of_bristol/js16170/projects/euflood/dat/eu_width_andreadis.tif')
-
-    # getbankelevs.py
-    config.add_section('getbankelevs')
-    config.set('getbankelevs', 'output',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_bnk")
-    config.set('getbankelevs', 'netf',      outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_net30.tif")
-    config.set('getbankelevs', 'hrdemf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_dem3.tif")
-    config.set('getbankelevs', 'hrrivf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_net3.tif")
-    config.set('getbankelevs', 'proj',     '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
-    config.set('getbankelevs', 'method',   'mean')
-    config.set('getbankelevs', 'outlier',  'yes')
-    config.set('getbankelevs', 'hrnodata', '-9999')
-    config.set('getbankelevs', 'thresh',   '0.00416')
-
-    # fixelevs.py
-    config.add_section('fixelevs')
-    config.set('fixelevs', 'source',  outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_bnk.shp")
-    config.set('fixelevs', 'output',  outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_bnkfix")
-    config.set('fixelevs', 'netf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_net30.tif")
-    config.set('fixelevs', 'coordf', '/Users/js16170/SOSA001/university_of_bristol/js16170/projects/euflood/dat/eu_coordd430s.txt')
-    config.set('fixelevs', 'treef',   outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_tre.txt")
-    config.set('fixelevs', 'proj',   '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
-    config.set('fixelevs', 'method', 'yamazaki')
-
-    # getslopes.py
-    config.add_section('getslopes')
-    config.set('getslopes', 'source',  outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_bnkfix.shp")
-    config.set('getslopes', 'output',  outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_slopes")
-    config.set('getslopes', 'netf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_net30.tif")
-    config.set('getslopes', 'coordf', '/Users/js16170/SOSA001/university_of_bristol/js16170/projects/euflood/dat/eu_coordd430s.txt')
-    config.set('getslopes', 'treef',   outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_tre.txt")
-    config.set('getslopes', 'proj',   '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
-    config.set('getslopes', 'method', 'linear_regr_step')
-    config.set('getslopes', 'step',   '5')
-
-    # rasterresample.py
-    config.add_section('rasterresample')
-    config.set('rasterresample', 'method',   'mean')
-    config.set('rasterresample', 'demf',      outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_dem3.tif")
-    config.set('rasterresample', 'netf',      outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_net30.tif")
-    config.set('rasterresample', 'output',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_dem30.tif")
-    config.set('rasterresample', 'outlier',  'yes')
-    config.set('rasterresample', 'hrnodata', '-9999')
-    config.set('rasterresample', 'thresh',   '0.00416')
-    config.set('rasterresample', 'resx',     '0.0083333333333')
-    config.set('rasterresample', 'resy',     '0.0083333333333')
-    config.set('rasterresample', 'nproc',    '4') # number of cpus to use
-
-    # getqbankfull.py
-    config.add_section('getqbankfull')
-    config.set('getqbankfull', 'netf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_net30.tif")
-    config.set('getqbankfull', 'output',  outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_qbfull")
-    config.set('getqbankfull', 'proj',   '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
-    config.set('getqbankfull', 'thresh', '5000') # given in meters since JRC data is in meters!
-    config.set('getqbankfull', 'aep',    '1.5') # Annual excende probability
-    config.set('getqbankfull', 'nproc',  '4') # number of cpus to use
-
-    # getdepths.py
-    config.add_section('getdepths')
-    config.set('getdepths', 'proj',   '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
-    config.set('getdepths', 'netf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_net30.tif")
-    config.set('getdepths', 'method', 'depth_manning')
-    config.set('getdepths', 'output',  outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_dpt")
-    config.set('getdepths', 'n',      '0.025')
-    config.set('getdepths', 'wdtf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_wdt.shp")
-    config.set('getdepths', 'slpf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_slopes.shp")
-    config.set('getdepths', 'qbnkf',   outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_qbfull.shp")
-
-    # getbedelevs.py
-    config.add_section('getbedelevs')
-    config.set('getbedelevs', 'bnkf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_bnkfix.shp")
-    config.set('getbedelevs', 'dptf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_dpt.shp")
-    config.set('getbedelevs', 'netf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_net30.tif")
-    config.set('getbedelevs', 'output',  outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_bed")
-    config.set('getbedelevs', 'proj',   '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
-
-    # wirtefiles.py
-    config.add_section('writefiles')
-    config.set('writefiles', 'parf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+".par")
-    config.set('writefiles', 'demf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_dem30.tif")
-    config.set('writefiles', 'grpf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_grp.tif")
-    config.set('writefiles', 'bnkf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_bnk.tif")
-    config.set('writefiles', 'wdtf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_wdt.tif")
-    config.set('writefiles', 'inff',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_inf.tif")
-    config.set('writefiles', 'bedf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_bed.tif")
-    config.set('writefiles', 'fixbnkf', outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_bnkfix.tif")
-    config.set('writefiles', 'dembnkf', outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_dembnk.tif")
-    config.set('writefiles', 'grdcf',   outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_grdc.txt")
-    config.set('writefiles', 'nrfaf',   outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_nrfa.txt")
-    config.set('writefiles', 'pramf',   outdirfil+"/"+ncatchstr+"/"+ncatchstr+".pram")
-    config.set('writefiles', 'netf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_net30.tif")
-    config.set('writefiles', 'gaugef',  outdirfil+"/"+ncatchstr+"/"+ncatchstr+".gauge")
-    config.set('writefiles', 'stagef',  outdirfil+"/"+ncatchstr+"/"+ncatchstr+".stage")
-    config.set('writefiles', 'dirf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_dir30.tif")
-    config.set('writefiles', 'evapf',   outdirfil+"/"+ncatchstr+"/"+ncatchstr+".evap")
-    config.set('writefiles', 'bdyf',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+".bdy")
-    config.set('writefiles', 'bcif',    outdirfil+"/"+ncatchstr+"/"+ncatchstr+".bci")
-    config.set('writefiles', 'date1',   '1990-01-01')
-    config.set('writefiles', 'date2',   '1990-01-10')
+    def find_links(link):
+        mylinks =[]
+        mylinks.append(link)
+        while True:
+            linkds = tree.loc[link,'frst_ds']
+            if linkds == -1: break
+            else:
+                mylinks.append(linkds)
+                link = linkds
+        return mylinks
     
-    with open(outdirfil+"/"+ncatchstr+"/config.cfg", 'wb') as configfile:
-        config.write(configfile)
+    tree = misc_utils.read_tree(treef)
+    coor = misc_utils.read_coord(coorf)
+    tree.set_index('link_no',inplace=True)
+    
+    # Finding the number of downstream links for every link
+    lnks = []
+    size = []
+    for i in tree.index:
+        res = find_links(i)
+        lnks.append(res)
+        size.append(len(res))
 
-    ### WRITE main.sh FILE ###
+    # Create columns with number of downstream links, index and flag with zeros
+    tree['links'] = size
+    tree['index'] = range(tree.index.size)
+    tree['link_flag'] = 0
 
-    toolbox = '/Users/js16170/SOSA001/university_of_bristol/js16170/projects/euflood/src/'
+    # Sorting in a descending way, links with more downstream links go first
+    tree.sort_values(by='links',ascending=False,inplace=True)
 
-    file = open(outdirfil+"/"+ncatchstr+"/"+ncatchstr+"_main.sh","w")
-    file.write('python'+' '+toolbox+"getinflows.py"+' '+'-i'+' '+'config.cfg'+'\n')
-    file.write('python'+' '+toolbox+"getwidths.py"+' '+'-i'+' '+'config.cfg'+'\n')
-    file.write('python'+' '+toolbox+"getbankelevs.py"+' '+'-i'+' '+'config.cfg'+'\n')
-    file.write('python'+' '+toolbox+"fixelevs.py"+' '+'-i'+' '+'config.cfg'+'\n')
-    file.write('python'+' '+toolbox+"getslopes.py"+' '+'-i'+' '+'config.cfg'+'\n')
-    file.write('python'+' '+toolbox+"getqbankfull.py"+' '+'-i'+' '+'config.cfg'+'\n')
-    file.write('python'+' '+toolbox+"getdepths.py"+' '+'-i'+' '+'config.cfg'+'\n')
-    file.write('python'+' '+toolbox+"getbedelevs.py"+' '+'-i'+' '+'config.cfg'+'\n')
-    file.write('python'+' '+toolbox+"rasterresample.py"+' '+'-i'+' '+'config.cfg'+'\n')
-    file.write('python'+' '+toolbox+"writefiles.py"+' '+'-i'+' '+'config.cfg'+'\n')
-    file.close()
+    # Go over links, check links from the lnks list
+    c = 0
+    df_rec = pd.DataFrame()
+    for i in tree['index']:
+        df_cor = pd.DataFrame()
+        for j in lnks[i]:
+            if tree.loc[j,'link_flag'] == 0:
+                tree.loc[j,'link_flag'] = 1
+                # Retrieve elevation
+                start = tree.loc[j,'start_pnt']
+                end = tree.loc[j,'end_pnt']
+                df = coor.loc[start:end,'lon':'distance']
+                df['link'] = int(j)
+                df_cor = pd.concat([df_cor,df])
+        if df_cor.empty is False:
+            c+=1
+            df_cor['reach'] = int(c)
+            df_rec = pd.concat([df_rec,df_cor])
+    df_rec.to_csv(outfile)
 
-def near(ddsx,ddsy,XA):
+    # Retrieving Strahler number
+    dslk = []
+    stra = []
+    for i in df_rec.index:
+        link = df_rec.loc[i,'link']
+        stra_val = tree.loc[link,'strahler']
+        dslk_val = tree.loc[link,'frst_ds']
+        stra.append(stra_val)
+        dslk.append(dslk_val)
+    df_rec['strahler'] = stra
+    df_rec['dslink'] = dslk
 
-    XB  = np.vstack((ddsy,ddsx)).T
-    dis = cdist(XA, XB, metric='euclidean').min()
-
-    return dis
+    # Writing file
+    df_rec.to_csv(outfile)
 
 if __name__ == '__main__':
     split(sys.argv[1:])

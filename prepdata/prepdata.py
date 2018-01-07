@@ -7,9 +7,10 @@
 
 import os
 import sys
-import pdb # pdb.set_trace()
 import getopt
 import subprocess
+import shapefile
+import pandas as pd
 import numpy as np
 from osgeo import osr
 from osgeo import gdal
@@ -93,8 +94,8 @@ def prepdata(argv):
     dem3vrt         = './'+outf+'/dem3.vrt'
     dem3tif         = './'+outf+'/dem3.tif'
     wth3list        = './'+outf+'/wth3.txt'
-    wth3vrt         = './'+outf+'/wht3.vrt'
-    wth3tif         = './'+outf+'/wht3.tif'
+    wth3vrt         = './'+outf+'/wth3.vrt'
+    wth3tif         = './'+outf+'/wth3.tif'
     dir3list        = './'+outf+'/dir3.txt'
     dir3vrt         = './'+outf+'/dir3.vrt'
     dir3tif         = './'+outf+'/dir3.tif'
@@ -133,18 +134,20 @@ def prepdata(argv):
     strn_coord30d4  = './'+outf+'/strn_coord30d4.txt'
     stren_net30d4   = './'+outf+'/stren_net30d4.out'
     stren_w30d4     = './'+outf+'/stren_w30d4.tif'
+    outshp          = './'+outf+'/outlets'
+    cattif          = './'+outf+'/catchments.tif'
 
     # create list of tiles in the region
-    # write_list_files(dem3path,'.tif',dem3list)
-    # write_list_files(wth3path,'.tif',wth3list)
+    write_list_files(dem3path,'.tif',dem3list)
+    write_list_files(wth3path,'.tif',wth3list)
 
     # merge tiles in region, create .vrt files, merge tiles
-    # subprocess.call(["gdalbuildvrt","-input_file_list",dem3list,dem3vrt])
-    # subprocess.call(["gdalbuildvrt","-input_file_list",wth3list,wth3vrt])
+    subprocess.call(["gdalbuildvrt","-input_file_list",dem3list,dem3vrt])
+    subprocess.call(["gdalbuildvrt","-input_file_list",wth3list,wth3vrt])
 
     # clip for region
-    # subprocess.call(["gdalwarp","-ot","Float32","-te",str(xmin),str(ymin),str(xmax),str(ymax),"-overwrite","-dstnodata","-9999","-co","BIGTIFF=YES",dem3vrt,dem3tif])
-    # subprocess.call(["gdalwarp","-ot","Float32","-te",str(xmin),str(ymin),str(xmax),str(ymax),"-overwrite","-dstnodata","-9999","-co","BIGTIFF=YES",wth3vrt,wth3tif])
+    subprocess.call(["gdalwarp","-ot","Float32","-te",str(xmin),str(ymin),str(xmax),str(ymax),"-overwrite","-dstnodata","-9999","-co","BIGTIFF=YES",dem3vrt,dem3tif])
+    subprocess.call(["gdalwarp","-ot","Float32","-te",str(xmin),str(ymin),str(xmax),str(ymax),"-overwrite","-dstnodata","-9999","-co","BIGTIFF=YES",wth3vrt,wth3tif])
 
     if res == 3:
 
@@ -174,6 +177,8 @@ def prepdata(argv):
         # running streamnet function fro TauDEM to get "tree" and "coord" files
         if streamnet == 'yes':
             subprocess.call(["mpiexec","-n","10","streamnet","-fel",net3tif,"-p",dir3tau,"-ad8",acc3tif,"-src",net3tif,"-ord",strn_ord3d8,"-tree",strn_tree3d8,"-coord",strn_coord3d8,"-net",stren_net3d8,"-w",stren_w3d8])
+            write_outlets(outshp,strn_tree3d8,strn_coord3d8)
+            subprocess.call(["gagewatershed","-p",dir3tau,"-gw",cattif,"-o",outshp+".shp"])
 
         # masking directions based on river network
         print "masking directions based on river network..."
@@ -206,6 +211,8 @@ def prepdata(argv):
 
         if streamnet == 'yes':
             subprocess.call(["mpiexec","-n","10","streamnet","-fel",net30tif,"-p",dir30tau,"-ad8",acc30tif,"-src",net30tif,"-ord",strn_ord30d8,"-tree",strn_tree30d8,"-coord",strn_coord30d8,"-net",stren_net30d8,"-w",stren_w30d8])
+            write_outlets(outshp,strn_tree30d8,strn_coord30d8)
+            subprocess.call(["gagewatershed","-p",dir30tau,"-gw",cattif,"-o",outshp+".shp"])
 
         print "masking directions based on river network..."
         rastermask(dir30tau,net30tif,"Int16",dir30tau_mask)
@@ -381,6 +388,54 @@ def write_list_files(inputpath,ext,outputfile):
     for i in range(len(mytiles)):
         myoutput.write(mytiles[i]+'\n')
     myoutput.close()
+
+def write_outlets(outshp,treef,coordf):
+
+    print "writing outlets..."
+
+    proj = '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs'
+
+    tree = read_tree_taudem(treef)
+    coor = read_coord_taudem(coordf)
+
+    myds_x = []
+    myds_y = []
+    for i in range(tree['link_no'].size):
+        end = tree['end_pnt'][i]
+        dsl = tree['frst_ds'][i]
+        lon = coor.loc[end,'lon']
+        lat = coor.loc[end,'lat']
+        if dsl == -1:
+            myds_x.append(lon)
+            myds_y.append(lat)
+
+    w = shapefile.Writer(shapefile.POINT)
+    w.field('x')
+    w.field('y')
+    w.field('id')
+
+    # write coordinate points in shapefile
+    for i in range(len(myds_x)):
+        w.point(myds_x[i],myds_y[i])
+        w.record(myds_x[i],myds_y[i],i)
+    w.save("%s.shp" % outshp)
+
+    # write .prj file
+    prj = open("%s.prj" % outshp, "w")
+    srs = osr.SpatialReference()
+    srs.ImportFromProj4(proj)
+    prj.write(srs.ExportToWkt())
+    prj.close() 
+
+def read_tree_taudem(treef):
+    df = pd.read_csv(treef, sep='\t', names=['0','link_no','start_pnt','end_pnt','frst_ds','frst_us','scnd_us','strahler','mon_pnt','shreve'])
+    df.drop(['0'], axis=1, inplace=True)
+    return df
+
+def read_coord_taudem(coordf):
+    df = pd.read_csv(coordf, sep='\t', names=['0','lon','lat','distance','elev','contr_area'])
+    df.drop(['0'], axis=1, inplace=True)
+    return df
 
 if __name__ == '__main__':
     prepdata(sys.argv[1:])

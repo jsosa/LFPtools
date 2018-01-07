@@ -33,6 +33,8 @@ def getwidths(argv):
     thresh = np.float64(config.get('getwidths','thresh'))
     output = str(config.get('getwidths','output'))
 
+    print "    running getwidths.py..."
+
     fname = output
 
     w = sf.Writer(sf.POINT)
@@ -48,8 +50,6 @@ def getwidths(argv):
     y     = geo[9][iy]
 
     for i in range(len(x)):
-
-        print "getwidths.py - " + str(len(x)-i)
         
         xmin  = x[i] - thresh
         ymin  = y[i] - thresh
