@@ -5,7 +5,9 @@
 # date: 29/apr/2017
 # mail: sosa.jeison@gmail.com / j.sosa@bristol.ac.uk
 
-import os,sys,shutil,subprocess
+import os
+import sys
+import subprocess
 import ConfigParser
 import getopt
 import numpy as np
@@ -15,8 +17,6 @@ from osgeo import osr
 from scipy.spatial.distance import cdist
 from scipy.optimize import fsolve
 
-import pdb
-# pdb.set_trace()
 
 def getdepths(argv):
 
@@ -31,6 +31,8 @@ def getdepths(argv):
     netf   = str(config.get('getdepths','netf'))
     method = str(config.get('getdepths','method'))
     output = str(config.get('getdepths','output'))
+
+    print "    runnning get_depths.py..."
 
     try:
         fdepth = str(config.get('getdepths','fdepth'))
@@ -146,15 +148,8 @@ def depth_manning(f,n,qbnkf,slpf,wdtf):
     xs    = slope[:,0]
     ys    = slope[:,1]
 
-    # # debug.. Do i'm taking the same point?
-    # print xw[100],yw[100]
-    # print xq[iiq],yq[iiq]
-    # print xs[iis],ys[iis]
-
     # iterate over every width x-y pair in the shapefile
     for i in range(width.shape[0]):
-
-        print "getdepths.py - " + str(width.shape[0]-i)
 
         # get index for Q and S based on W coordinates
         iiq = near(yq,xq,np.array([[xw[i],yw[i]]]))

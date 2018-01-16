@@ -5,14 +5,15 @@
 # date: 26/jun/2017
 # mail: j.sosa@bristol.ac.uk / sosa.jeison@gmail.com
 
-import os,sys,getopt,subprocess
+import os
+import sys
+import getopt
+import subprocess
 import ConfigParser
 import shapefile
 from gdal_utils import *
 from scipy.spatial.distance import cdist
 
-import pdb
-# pdb.set_trace()
 
 def getbedelevs(argv):
 
@@ -28,6 +29,8 @@ def getbedelevs(argv):
     netf   = str(config.get('getbedelevs','netf'))
     output = str(config.get('getbedelevs','output'))
     proj   = str(config.get('getbedelevs','proj'))
+
+    print "    running getbedelevs.py..."
 
     nodata = -9999
 
@@ -45,8 +48,6 @@ def getbedelevs(argv):
     y = bank[:,1]
 
     for i in range(bank.shape[0]):
-
-        print "getbedelevs.py - " + str(bank.shape[0]-i)
 
         dis,ind = near(x,y,np.array([[depth[i,1],depth[i,0]]]))
         if bank[i,2]>nodata and depth[ind,2]>nodata and dis<0.01:

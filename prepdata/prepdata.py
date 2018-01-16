@@ -86,6 +86,7 @@ def prepdata(argv):
         sys.exit("ERROR: There isn't Yamazaki's 30s Flow direction data")
     elif (srcdir == "hydrosheds") & (res == 30):
         dir30path = '/scratch/hydro3/js16170/data_processed/hydrosheds/dir30/'
+        dir30merged = dir30path + "merged.tif"
 
     wth3path = '/scratch/hydro3/js16170/data_processed/yamazaki/wth3/'
 
@@ -195,11 +196,7 @@ def prepdata(argv):
     # same procedure for 30s resolution
     elif res == 30:
 
-        write_list_files(dir30path,'.bil',dir30list)
-
-        subprocess.call(["gdalbuildvrt","-input_file_list",dir30list,dir30vrt])
-
-        subprocess.call(["gdalwarp","-te",str(xmin),str(ymin),str(xmax),str(ymax),"-overwrite",dir30vrt,dir30tif])
+        subprocess.call(["gdalwarp","-te",str(xmin),str(ymin),str(xmax),str(ymax),"-overwrite",dir30merged,dir30tif])
 
         print "converting directions into TAUDEM directions..."
         directions_tau(dir30tif,dir30tau)
