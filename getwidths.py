@@ -26,7 +26,7 @@ def getwidths(argv):
     config = ConfigParser.SafeConfigParser()
     config.read(inifile)
 
-    recf  = str(config.get('getslopes','recf'))
+    recf   = str(config.get('getslopes','recf'))
     netf   = str(config.get('getwidths','netf'))
     proj   = str(config.get('getwidths','proj'))
     fwidth = str(config.get('getwidths','fwidth'))
@@ -59,10 +59,15 @@ def getwidths(argv):
         if dis <= thresh:
             val = dat[iy[ind],ix[ind]]
             width.append(val)
-    if len(rec['lon']) == len(width):
-        rec['width'] = width
-    else:
-        sys.exit('rec.width and width do not have same dimensions')
+        else:
+            width.append(np.nan)
+    rec['width'] = width
+
+    # Filling NaN, backward and forward
+    # Grouping per LINK, then perform operation
+    rec.loc[:,'width'] = rec.groupby('link').width.fillna(method='ffill')
+    rec.loc[:,'width'] = rec.groupby('link').width.fillna(method='bfill')
+    rec.to_csv(output+".csv")
 
    # Writing .shp resulting file
     for x,y,width in zip(rec['lon'],rec['lat'],rec['width']):
