@@ -79,7 +79,7 @@ def cy_directions_tau(np.int16_t[:,:] data, np.int16_t nodata):
             elif data[m,n] == 247:
                 data[m,n] = nodata
             elif data[m,n] == 255:
-                data[m,n] = 1
+                data[m,n] = nodata
     return data
 
 def cy_d82d4(np.int16_t[:,:] data, np.int16_t nodata):
