@@ -98,38 +98,18 @@ def basinsplit(ncatch,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,tretxt,co
     ymax    = catgeo[9][min(row)]
 
     # Clip input rasters
-    demarrcli,demgeocli = gdal_utils.clip_raster(demtif,xmin,ymin,xmax,ymax)
-    accarrcli,accgeocli = gdal_utils.clip_raster(acctif,xmin,ymin,xmax,ymax)
-    netarrcli,netgeocli = gdal_utils.clip_raster(nettif,xmin,ymin,xmax,ymax)
-    wtharrcli,wthgeocli = gdal_utils.clip_raster(wthtif,xmin,ymin,xmax,ymax)
-    dirarrcli,dirgeocli = gdal_utils.clip_raster(dirtif,xmin,ymin,xmax,ymax)
-    catarrcli,catgeocli = gdal_utils.clip_raster(cattif,xmin,ymin,xmax,ymax)
+    netarr_tmp,netgeo_tmp = gdal_utils.clip_raster(nettif,xmin,ymin,xmax,ymax)
+    catarr_tmp,catgeo_tmp = gdal_utils.clip_raster(cattif,xmin,ymin,xmax,ymax)
 
     # Mask only the catchment and fill with zeros
-    netarrcli = np.where(catarrcli==ncatch,netarrcli,0)
-    dirarrcli = np.where(catarrcli==ncatch,dirarrcli,0)
-
-    # Creating output names
-    fnamedem = folder + "/" + ncatchstr +"_dem.tif"
-    fnameacc = folder + "/" + ncatchstr +"_acc.tif"
-    fnamenet = folder + "/" + ncatchstr +"_net.tif"
-    fnamewth = folder + "/" + ncatchstr +"_wth.tif"
-    fnamedir = folder + "/" + ncatchstr +"_dir.tif"
-    
-    # Writing clipped arrays
-    nodata = -9999
-    gdal_utils.writeRaster(demarrcli,fnamedem,demgeocli,"Float32",nodata)
-    gdal_utils.writeRaster(accarrcli,fnameacc,accgeocli,"Float32",nodata)
-    gdal_utils.writeRaster(netarrcli,fnamenet,netgeocli,"Float32",nodata)
-    gdal_utils.writeRaster(wtharrcli,fnamewth,wthgeocli,"Float32",nodata)
-    gdal_utils.writeRaster(dirarrcli,fnamedir,dirgeocli,"Float32",nodata)
+    netarr_tmp = np.where(catarr_tmp==ncatch,netarr_tmp,0)
 
     # Clipping tree and coord files based on nettif > 0, coordinates
-    tree = misc_utils.read_tree_taudem(tretxt)
-    coor = misc_utils.read_coord_taudem(cootxt)
-    iy,ix = np.where(netarrcli > 0)
-    Xrav = netgeocli[8][ix]
-    Yrav = netgeocli[9][iy]
+    tree  = misc_utils.read_tree_taudem(tretxt)
+    coor  = misc_utils.read_coord_taudem(cootxt)
+    iy,ix = np.where(netarr_tmp > 0)
+    Xrav  = netgeo_tmp[8][ix]
+    Yrav  = netgeo_tmp[9][iy]
 
     # Clipping coord file (it may be improved, calculation takes some time)
     lfp_coor = pd.DataFrame()
@@ -166,6 +146,40 @@ def basinsplit(ncatch,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,tretxt,co
     # Creating XXX_rec.csv file
     fnamerec = folder + "/" + ncatchstr +"_rec.csv"
     connections(fnametre,fnamecoo,fnamerec)
+
+    # Finding xmin, xmax, ymin, ymax based on river network points
+    rec  = pd.read_csv(fnamerec)
+    xmin = rec['lon'].min()
+    xmax = rec['lon'].max()
+    ymin = rec['lat'].min()
+    ymax = rec['lat'].max()
+
+    # Clipping rasters
+    demarrcli,demgeocli = gdal_utils.clip_raster(demtif,xmin,ymin,xmax,ymax)
+    accarrcli,accgeocli = gdal_utils.clip_raster(acctif,xmin,ymin,xmax,ymax)
+    wtharrcli,wthgeocli = gdal_utils.clip_raster(wthtif,xmin,ymin,xmax,ymax)
+    dirarrcli,dirgeocli = gdal_utils.clip_raster(dirtif,xmin,ymin,xmax,ymax)
+    netarrcli,netgeocli = gdal_utils.clip_raster(nettif,xmin,ymin,xmax,ymax)
+    catarrcli,catgeocli = gdal_utils.clip_raster(cattif,xmin,ymin,xmax,ymax)
+
+    # Mask only the catchment and fill with zeros
+    netarrcli = np.where(catarrcli==ncatch,netarrcli,0)
+    dirarrcli = np.where(catarrcli==ncatch,dirarrcli,0)
+
+    # Creating output names
+    fnamedem = folder + "/" + ncatchstr +"_dem.tif"
+    fnameacc = folder + "/" + ncatchstr +"_acc.tif"
+    fnamenet = folder + "/" + ncatchstr +"_net.tif"
+    fnamewth = folder + "/" + ncatchstr +"_wth.tif"
+    fnamedir = folder + "/" + ncatchstr +"_dir.tif"
+
+    # Writing clipped arrays
+    nodata = -9999
+    gdal_utils.writeRaster(demarrcli,fnamedem,demgeocli,"Float32",nodata)
+    gdal_utils.writeRaster(accarrcli,fnameacc,accgeocli,"Float32",nodata)
+    gdal_utils.writeRaster(netarrcli,fnamenet,netgeocli,"Float32",nodata)
+    gdal_utils.writeRaster(wtharrcli,fnamewth,wthgeocli,"Float32",nodata)
+    gdal_utils.writeRaster(dirarrcli,fnamedir,dirgeocli,"Float32",nodata)
 
 def connections(treef,coorf,outfile):
     
