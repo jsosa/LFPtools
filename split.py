@@ -120,6 +120,7 @@ def basinsplit(ncatch,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,tretxt,co
     lfp_coor = lfp_coor[['lon','lat','distance','elev','contr_area']]
     lfp_coor.index.name = 'index'
     lfp_coor.sort_index(inplace=True)
+    lfp_coor.drop_duplicates(inplace=True) # Remove duplicates just in case
 
     # Clipping tree file
     lfp_tree = pd.DataFrame()
