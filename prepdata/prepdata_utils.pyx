@@ -5,8 +5,10 @@
 # date: 13/dec/2017
 # mail: j.sosa@bristol.ac.uk / sosa.jeison@gmail.com
 
+cimport cython
 import numpy as np
 cimport numpy as np
+from libc.math cimport sin,asin,cos,pow,sqrt,M_PI
 
 def cy_rastermask(np.float64_t[:,:] data, np.int16_t[:,:] mask):
 
@@ -125,3 +127,44 @@ def cy_d82d4(np.int16_t[:,:] data, np.int16_t nodata):
     cdef np.int16_t[:,:] net = np.ones((M,N),dtype=np.int16) * np.greater(data,0)
 
     return (data,net)
+
+
+@cython.wraparound(False)
+@cython.boundscheck(False)
+def calc_dis(np.int16_t nx, np.int16_t ny, np.float32_t resx, np.float32_t resy, np.float32_t[:] x, np.float32_t[:] y):
+
+    cdef np.int16_t i,j
+    cdef np.float32_t xx,yy,x1,x2,y1,y2
+    cdef np.float32_t[:,:] dis = np.zeros((ny,nx),dtype=np.float32)
+
+    for j in range(ny):
+        for i in range(nx):
+            x1 = x[i] - resx
+            x2 = x[i] + resx
+            y1 = y[j] + resy
+            y2 = y[j] - resy
+            xx = haversine(y1,x1,y1,x2)
+            yy = haversine(y1,x1,y2,x1)
+            dis[j,i] = xx*yy
+
+    return dis
+
+@cython.wraparound(False)
+@cython.boundscheck(False)
+def haversine(np.float32_t lat1, np.float32_t lng1, np.float32_t lat2, np.float32_t lng2):
+    
+    cdef np.int32_t AVG_EARTH_RADIUS = 6371  # in km
+    cdef np.float32_t lat,lng,d,h
+
+    # Convert all latitudes/longitudes from decimal degrees to radians
+    lat1 = lat1*M_PI/180
+    lng1 = lng1*M_PI/180
+    lat2 = lat2*M_PI/180
+    lng2 = lng2*M_PI/180
+
+    lat = lat2 - lat1
+    lng = lng2 - lng1
+    d = pow(sin(lat*0.5),2) + cos(lat1)*cos(lat2)*pow(sin(lng*0.5),2)
+    h = 2*AVG_EARTH_RADIUS*asin(sqrt(d))
+    
+    return h

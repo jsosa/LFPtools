@@ -12,6 +12,7 @@ import subprocess
 import shapefile
 import pandas as pd
 import numpy as np
+import gdal_utils
 from osgeo import osr
 from osgeo import gdal
 from prepdata_utils import cy_d82d4
@@ -107,6 +108,7 @@ def prepdata(argv):
     dir30vrt        = './'+outf+'/dir30.vrt'
     dir30tif        = './'+outf+'/dir30.tif'
     dir30tau        = './'+outf+'/dir30tau.tif'
+    dir30taud4      = './'+outf+'/dir30taud4.tif'
     dir30tau_mask   = './'+outf+'/dir30tau_mask.tif'
     dir30tau_maskd4 = './'+outf+'/dir30tau_maskd4.tif'
     acc3tif         = './'+outf+'/acc3.tif'
@@ -135,20 +137,25 @@ def prepdata(argv):
     strn_coord30d4  = './'+outf+'/strn_coord30d4.txt'
     stren_net30d4   = './'+outf+'/stren_net30d4.out'
     stren_w30d4     = './'+outf+'/stren_w30d4.tif'
-    outshp          = './'+outf+'/outlets'
-    cattif          = './'+outf+'/catchments.tif'
+    out3shp         = './'+outf+'/out3.shp'
+    out3shpd4       = './'+outf+'/out3d4.shp'
+    out30shp        = './'+outf+'/out30.shp'
+    out30shpd4      = './'+outf+'/out30d4.shp'
+    cat3tif         = './'+outf+'/basins3.tif'
+    cat30tif        = './'+outf+'/basins30.tif'
+    cat30tifd4      = './'+outf+'/basins30d4.tif'
 
     # create list of tiles in the region
-    write_list_files(dem3path,'.tif',dem3list)
-    write_list_files(wth3path,'.tif',wth3list)
+    # write_list_files(dem3path,'.tif',dem3list)
+    # write_list_files(wth3path,'.tif',wth3list)
 
     # merge tiles in region, create .vrt files, merge tiles
-    subprocess.call(["gdalbuildvrt","-input_file_list",dem3list,dem3vrt])
-    subprocess.call(["gdalbuildvrt","-input_file_list",wth3list,wth3vrt])
+    # subprocess.call(["gdalbuildvrt","-input_file_list",dem3list,dem3vrt])
+    # subprocess.call(["gdalbuildvrt","-input_file_list",wth3list,wth3vrt])
 
     # clip for region
-    subprocess.call(["gdalwarp","-ot","Float32","-te",str(xmin),str(ymin),str(xmax),str(ymax),"-overwrite","-dstnodata","-9999","-co","BIGTIFF=YES",dem3vrt,dem3tif])
-    subprocess.call(["gdalwarp","-ot","Float32","-te",str(xmin),str(ymin),str(xmax),str(ymax),"-overwrite","-dstnodata","-9999","-co","BIGTIFF=YES",wth3vrt,wth3tif])
+    # subprocess.call(["gdalwarp","-ot","Float32","-te",str(xmin),str(ymin),str(xmax),str(ymax),"-overwrite","-dstnodata","-9999","-co","BIGTIFF=YES",dem3vrt,dem3tif])
+    # subprocess.call(["gdalwarp","-ot","Float32","-te",str(xmin),str(ymin),str(xmax),str(ymax),"-overwrite","-dstnodata","-9999","-co","BIGTIFF=YES",wth3vrt,wth3tif])
 
     if res == 3:
 
@@ -175,23 +182,30 @@ def prepdata(argv):
         print "thresholding accumulation to get river network..."
         rasterthreshold(acc3tif,thresh,'Int16',net3tif)
 
-        # running streamnet function fro TauDEM to get "tree" and "coord" files
-        if streamnet == 'yes':
-            subprocess.call(["mpiexec","-n","10","streamnet","-fel",net3tif,"-p",dir3tau,"-ad8",acc3tif,"-src",net3tif,"-ord",strn_ord3d8,"-tree",strn_tree3d8,"-coord",strn_coord3d8,"-net",stren_net3d8,"-w",stren_w3d8])
-            write_outlets(outshp,strn_tree3d8,strn_coord3d8)
-            subprocess.call(["gagewatershed","-p",dir3tau,"-gw",cattif,"-o",outshp+".shp"])
-
         # masking directions based on river network
         print "masking directions based on river network..."
         rastermask(dir3tau,net3tif,"Int16",dir3tau_mask)
+
+        print "writing outlets and inland depressions in shapefile..."
+        write_outlets(out3shp,dir3tau_mask)
+
+        print "writing basins file..."
+        subprocess.call(["gagewatershed","-p",dir3tau,"-gw",cat3tif,"-o",out3shp])
+
+        # running streamnet function fro TauDEM to get "tree" and "coord" files
+        if streamnet == 'yes':
+            subprocess.call(["mpiexec","-n","10","streamnet","-fel",net3tif,"-p",dir3tau,"-ad8",acc3tif,"-src",net3tif,"-ord",strn_ord3d8,"-tree",strn_tree3d8,"-coord",strn_coord3d8,"-net",stren_net3d8,"-w",stren_w3d8,"-o",out3shp])
 
         # covnert d8 into d4 directions, produce a d4 river network
         print "creating D4 river network..."
         d82d4(dir3tau_mask,dir3tau_maskd4,net3tifd4)
 
+        print "writing D4 outlets and inland depression in shapefile"
+        write_outlets(out3shpd4,dir3tau_maskd4)
+
         # runnning streamnet to get "tree" and "coord" files for the d4 river network
         if streamnet == 'yes':
-            subprocess.call(["mpiexec","-n","10","streamnet","-fel",net3tifd4,"-p",dir3tau_maskd4,"-ad8",acc3tif,"-src",net3tifd4,"-ord",strn_ord3d4,"-tree",strn_tree3d4,"-coord",strn_coord3d4,"-net",stren_net3d4,"-w",stren_w3d4])
+            subprocess.call(["mpiexec","-n","10","streamnet","-fel",net3tifd4,"-p",dir3tau_maskd4,"-ad8",acc3tif,"-src",net3tifd4,"-ord",strn_ord3d4,"-tree",strn_tree3d4,"-coord",strn_coord3d4,"-net",stren_net3d4,"-w",stren_w3d4,"-o",out3shpd4])
 
     # same procedure for 30s resolution
     elif res == 30:
@@ -206,19 +220,32 @@ def prepdata(argv):
         print "thresholding accumulation to get river network..."
         rasterthreshold(acc30tif,thresh,'Int16',net30tif)
 
-        if streamnet == 'yes':
-            subprocess.call(["mpiexec","-n","10","streamnet","-fel",net30tif,"-p",dir30tau,"-ad8",acc30tif,"-src",net30tif,"-ord",strn_ord30d8,"-tree",strn_tree30d8,"-coord",strn_coord30d8,"-net",stren_net30d8,"-w",stren_w30d8])
-            write_outlets(outshp,strn_tree30d8,strn_coord30d8)
-            subprocess.call(["gagewatershed","-p",dir30tau,"-gw",cattif,"-o",outshp+".shp"])
-
         print "masking directions based on river network..."
         rastermask(dir30tau,net30tif,"Int16",dir30tau_mask)
+
+        print "writing outlets and inland depressions in shapefile..."
+        write_outlets(out30shp,dir30tau_mask)
+
+        print "writing basins file..."
+        subprocess.call(["gagewatershed","-p",dir30tau,"-gw",cat30tif,"-o",out30shp])
+
+        if streamnet == 'yes':
+            subprocess.call(["mpiexec","-n","10","streamnet","-fel",net30tif,"-p",dir30tau,"-ad8",acc30tif,"-src",net30tif,"-ord",strn_ord30d8,"-tree",strn_tree30d8,"-coord",strn_coord30d8,"-net",stren_net30d8,"-w",stren_w30d8,"-o",out30shp])
 
         print "creating D4 river network..."
         d82d4(dir30tau_mask,dir30tau_maskd4,net30tifd4)
 
+        print "writing D4 outlets and inland depression in shapefile..."
+        write_outlets(out30shpd4,dir30tau_maskd4)
+
+        print "create flow directions map D4..."
+        create_dir_d4(dir30taud4,dir30tau,dir30tau_maskd4)
+
+        print "writing basins file D4..."
+        subprocess.call(["gagewatershed","-p",dir30taud4,"-gw",cat30tifd4,"-o",out30shpd4])
+
         if streamnet == 'yes':
-            subprocess.call(["mpiexec","-n","10","streamnet","-fel",net30tifd4,"-p",dir30tau_maskd4,"-ad8",acc30tif,"-src",net30tifd4,"-ord",strn_ord30d4,"-tree",strn_tree30d4,"-coord",strn_coord30d4,"-net",stren_net30d4,"-w",stren_w30d4])
+            subprocess.call(["mpiexec","-n","10","streamnet","-fel",net30tifd4,"-p",dir30tau_maskd4,"-ad8",acc30tif,"-src",net30tifd4,"-ord",strn_ord30d4,"-tree",strn_tree30d4,"-coord",strn_coord30d4,"-net",stren_net30d4,"-w",stren_w30d4,"-o",out30shpd4])
 
 def get_gdal_data(filename):
 
@@ -386,43 +413,88 @@ def write_list_files(inputpath,ext,outputfile):
         myoutput.write(mytiles[i]+'\n')
     myoutput.close()
 
-def write_outlets(outshp,treef,coordf):
-
-    print "writing outlets..."
+def write_outlets(outshp,dirtif_mask):
 
     proj = '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs'
 
-    tree = read_tree_taudem(treef)
-    coor = read_coord_taudem(coordf)
+    dat = gdal_utils.get_gdal_data(dirtif_mask)
+    geo = gdal_utils.get_gdal_geo(dirtif_mask)
+    rows,cols = np.where(dat>0)
 
-    myds_x = []
-    myds_y = []
-    for i in range(tree['link_no'].size):
-        end = tree['end_pnt'][i]
-        dsl = tree['frst_ds'][i]
-        lon = coor.loc[end,'lon']
-        lat = coor.loc[end,'lat']
-        if dsl == -1:
-            myds_x.append(lon)
-            myds_y.append(lat)
+    x = []
+    y = []
+    for row,col in zip(rows,cols):
+        A=find_neighbours(dat,row,col)
+        if np.any(A<0):
+            x.append(geo[8][col])
+            y.append(geo[9][row])
 
+    # Initiate shapefile
     w = shapefile.Writer(shapefile.POINT)
     w.field('x')
     w.field('y')
     w.field('id')
 
-    # write coordinate points in shapefile
-    for i in range(len(myds_x)):
-        w.point(myds_x[i],myds_y[i])
-        w.record(myds_x[i],myds_y[i],i)
-    w.save("%s.shp" % outshp)
-
-    # write .prj file
-    prj = open("%s.prj" % outshp, "w")
+    # Write coordinate points in shapefile
+    for i in range(len(x)):
+        w.point(x[i],y[i])
+        w.record(x[i],y[i],i)
+    w.save(outshp)
+    fname = os.path.dirname(outshp)+'/'+os.path.basename(outshp).split('.')[0] + '.prj'
+    prj = open(fname, "w")
     srs = osr.SpatialReference()
     srs.ImportFromProj4(proj)
     prj.write(srs.ExportToWkt())
     prj.close() 
+
+def find_neighbours(dat,row,col):
+
+    nei = []
+    try:
+        nei.append(dat[row,col+1])
+    except IndexError:
+        nei.append(np.nan)
+    try:
+        nei.append(dat[row-1,col+1])
+    except IndexError:
+        nei.append(np.nan)
+    try:
+        nei.append(dat[row-1,col])
+    except IndexError:
+        nei.append(np.nan)
+    try:
+        nei.append(dat[row-1,col-1])
+    except IndexError:
+        nei.append(np.nan)
+    try:
+        nei.append(dat[row,col-1])
+    except IndexError:
+        nei.append(np.nan)
+    try:
+        nei.append(dat[row+1,col-1])
+    except IndexError:
+        nei.append(np.nan)
+    try:
+        nei.append(dat[row+1,col])
+    except IndexError:
+        nei.append(np.nan)
+    try:
+        nei.append(dat[row+1,col+1])
+    except IndexError:
+        nei.append(np.nan)
+
+    return np.array(nei)
+
+def create_dir_d4(dirtaud4,dirtaud8,dirtau_maskd4):
+
+    dat1 = gdal_utils.get_gdal_data(dirtaud8)
+    dat2 = gdal_utils.get_gdal_data(dirtau_maskd4)
+    geo  = gdal_utils.get_gdal_geo(dirtaud8)
+
+    A = np.where(dat2>0)
+    dat1[A] = dat2[A]
+
+    gdal_utils.writeRaster(dat1,dirtaud4,geo,"Int16",-32768)
 
 def read_tree_taudem(treef):
     df = pd.read_csv(treef, sep='\t', names=['0','link_no','start_pnt','end_pnt','frst_ds','frst_us','scnd_us','strahler','mon_pnt','shreve'])
