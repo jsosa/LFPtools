@@ -5,12 +5,14 @@
 # date: 12/may/2017
 # mail: j.sosa@bristol.ac.uk / sosa.jeison@gmail.com
 
-import sys,getopt,os,shutil,subprocess
-import ConfigParser
+import sys
+import getopt
+import subprocess
+import configparser
 import numpy as np
-import shapefile as sf
-from gdal_utils import *
-from osgeo import gdal,osr
+from lfptools import shapefile
+import gdalutils
+from osgeo import osr
 from scipy.ndimage import distance_transform_edt
 from scipy.spatial.distance import cdist
 
@@ -23,7 +25,7 @@ def getbankelevs(argv):
     for o, a in opts:
         if o == "-i": inifile  = a
 
-    config = ConfigParser.SafeConfigParser()
+    config = configparser.SafeConfigParser()
     config.read(inifile)
 
     output = str(config.get('getbankelevs','output'))
@@ -45,18 +47,18 @@ def getbankelevs(argv):
     hrnodata = np.float64(config.get('getbankelevs','hrnodata'))
     thresh   = np.float64(config.get('getbankelevs','thresh'))
 
-    print "    running getbankelevs.py..."
+    print("    running getbankelevs.py...")
 
     fname = output
 
-    w = sf.Writer(sf.POINT)
+    w = shapefile.Writer(shapefile.POINT)
     w.field('x')
     w.field('y')
     w.field('elev')
 
     # coordinates for bank elevations are based in river network mask
-    net   = get_gdal_data(netf)
-    geo   = get_gdal_geo(netf)
+    net   = gdalutils.get_data(netf)
+    geo   = gdalutils.get_geo(netf)
     iy,ix = np.where(net>0)
     x     = geo[8][ix]
     y     = geo[9][iy]
@@ -68,11 +70,11 @@ def getbankelevs(argv):
         xmax = x[i] + thresh
         ymax = y[i] + thresh
 
-        dem,dem_geo = clip_raster(hrdemf,xmin,ymin,xmax,ymax)
+        dem,dem_geo = gdalutils.clip_raster(hrdemf,xmin,ymin,xmax,ymax)
         ddem        = np.ma.masked_where(dem==hrnodata,dem)
 
         try:
-            riv,riv_geo = clip_raster(hrrivf,xmin,ymin,xmax,ymax)
+            riv,riv_geo = gdalutils.clip_raster(hrrivf,xmin,ymin,xmax,ymax)
             rriv        = riv
         except:
             pass

@@ -8,11 +8,11 @@
 import os
 import sys
 import getopt
-import ConfigParser
+import configparser
 import numpy as np
 import pandas as pd
-import gdal_utils
-import misc_utils
+import gdalutils
+from lfptools import misc_utils
 
 def split(argv):
     
@@ -49,7 +49,7 @@ def split(argv):
     opts, args = getopt.getopt(argv,"i:")
     for o, a in opts:
         if o == "-i": inifile  = a
-    config = ConfigParser.SafeConfigParser()
+    config = configparser.SafeConfigParser()
     config.read(inifile)
 
     basnum = str(config.get('split','basnum'))
@@ -63,17 +63,18 @@ def split(argv):
     cootxt = str(config.get('split','cootxt'))
     outdir = str(config.get('split','outdir'))
 
+    print("    running slipt.py...")
+
     # Loading data
-    catarr = gdal_utils.get_gdal_data(cattif)
+    catarr = gdalutils.get_data(cattif)
 
     # Clip input maps per catchment
     if basnum == "all":
         # Loop over all catchment numbers
         for nc in np.unique(catarr[catarr>0]): # Catchments should be numbered and > 0
-            print "split.py - " + str(np.max(catarr)-nc)
+            basinsplit(nc,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,tretxt,cootxt)
     else:
         # Process a single catchment
-        print "split.py - " + basnum
         basinsplit(np.int(basnum),outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,tretxt,cootxt)
 
 
@@ -89,8 +90,8 @@ def basinsplit(ncatch,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,tretxt,co
             raise
 
     # Get extend for every catchment
-    catarr  = gdal_utils.get_gdal_data(cattif)
-    catgeo  = gdal_utils.get_gdal_geo(cattif)
+    catarr  = gdalutils.get_data(cattif)
+    catgeo  = gdalutils.get_geo(cattif)
     row,col = np.where(catarr==ncatch)
     xmin    = catgeo[8][min(col)]
     xmax    = catgeo[8][max(col)]
@@ -98,8 +99,8 @@ def basinsplit(ncatch,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,tretxt,co
     ymax    = catgeo[9][min(row)]
 
     # Clip input rasters
-    netarr_tmp,netgeo_tmp = gdal_utils.clip_raster(nettif,xmin,ymin,xmax,ymax)
-    catarr_tmp,catgeo_tmp = gdal_utils.clip_raster(cattif,xmin,ymin,xmax,ymax)
+    netarr_tmp,netgeo_tmp = gdalutils.clip_raster(nettif,xmin,ymin,xmax,ymax)
+    catarr_tmp,catgeo_tmp = gdalutils.clip_raster(cattif,xmin,ymin,xmax,ymax)
 
     # Mask only the catchment and fill with zeros
     netarr_tmp = np.where(catarr_tmp==ncatch,netarr_tmp,0)
@@ -156,12 +157,12 @@ def basinsplit(ncatch,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,tretxt,co
     ymax = rec['lat'].max()
 
     # Clipping rasters
-    demarrcli,demgeocli = gdal_utils.clip_raster(demtif,xmin,ymin,xmax,ymax)
-    accarrcli,accgeocli = gdal_utils.clip_raster(acctif,xmin,ymin,xmax,ymax)
-    wtharrcli,wthgeocli = gdal_utils.clip_raster(wthtif,xmin,ymin,xmax,ymax)
-    dirarrcli,dirgeocli = gdal_utils.clip_raster(dirtif,xmin,ymin,xmax,ymax)
-    netarrcli,netgeocli = gdal_utils.clip_raster(nettif,xmin,ymin,xmax,ymax)
-    catarrcli,catgeocli = gdal_utils.clip_raster(cattif,xmin,ymin,xmax,ymax)
+    demarrcli,demgeocli = gdalutils.clip_raster(demtif,xmin,ymin,xmax,ymax)
+    accarrcli,accgeocli = gdalutils.clip_raster(acctif,xmin,ymin,xmax,ymax)
+    wtharrcli,wthgeocli = gdalutils.clip_raster(wthtif,xmin,ymin,xmax,ymax)
+    dirarrcli,dirgeocli = gdalutils.clip_raster(dirtif,xmin,ymin,xmax,ymax)
+    netarrcli,netgeocli = gdalutils.clip_raster(nettif,xmin,ymin,xmax,ymax)
+    catarrcli,catgeocli = gdalutils.clip_raster(cattif,xmin,ymin,xmax,ymax)
 
     # Mask only the catchment and fill with zeros
     netarrcli = np.where(catarrcli==ncatch,netarrcli,0)
@@ -176,11 +177,11 @@ def basinsplit(ncatch,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,tretxt,co
 
     # Writing clipped arrays
     nodata = -9999
-    gdal_utils.writeRaster(demarrcli,fnamedem,demgeocli,"Float32",nodata)
-    gdal_utils.writeRaster(accarrcli,fnameacc,accgeocli,"Float32",nodata)
-    gdal_utils.writeRaster(netarrcli,fnamenet,netgeocli,"Float32",nodata)
-    gdal_utils.writeRaster(wtharrcli,fnamewth,wthgeocli,"Float32",nodata)
-    gdal_utils.writeRaster(dirarrcli,fnamedir,dirgeocli,"Float32",nodata)
+    gdalutils.write_raster(demarrcli,fnamedem,demgeocli,"Float32",nodata)
+    gdalutils.write_raster(accarrcli,fnameacc,accgeocli,"Float32",nodata)
+    gdalutils.write_raster(netarrcli,fnamenet,netgeocli,"Float32",nodata)
+    gdalutils.write_raster(wtharrcli,fnamewth,wthgeocli,"Float32",nodata)
+    gdalutils.write_raster(dirarrcli,fnamedir,dirgeocli,"Float32",nodata)
 
 def connections(treef,coorf,outfile):
     

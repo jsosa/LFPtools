@@ -9,12 +9,12 @@ import os
 import sys
 import getopt
 import subprocess
-import ConfigParser
+import configparser
 import numpy as np
 import pandas as pd
-import shapefile
-import misc_utils
-import gdal_utils
+from lfptools import shapefile
+from lfptools import misc_utils
+import gdalutils
 from osgeo import osr
 
 def fixelevs(argv):
@@ -37,7 +37,7 @@ def fixelevs(argv):
     for o, a in opts:
         if o == "-i": inifile = a
 
-    config = ConfigParser.SafeConfigParser()
+    config = configparser.SafeConfigParser()
     config.read(inifile)
 
     source = str(config.get('fixelevs','source'))
@@ -47,10 +47,10 @@ def fixelevs(argv):
     proj   = str(config.get('fixelevs','proj'))
     method = str(config.get('fixelevs','method'))
 
-    print "    running fixelevs.py..."
+    print("    running fixelevs.py...")
 
     # Reading XXX_net.tif file
-    geo = gdal_utils.get_gdal_geo(netf)
+    geo = gdalutils.get_geo(netf)
 
     # Reading XXX_rec.csv file
     rec = pd.read_csv(recf)
@@ -178,13 +178,13 @@ def bank4flood(dem):
             lmin=np.min(lmod)
             imin=np.where(lmod==lmin)[0][0]
 
-            # print ""
-            # print "    problem
-            # print "    cost ....." + str(lmod[imin])
-            # print "    indexes .." + str(np.float64(zind[imin]))
-            # print "    before ..." + str(adjusted_dem[zind[imin]])
-            # print "    after ...." + str(zmod[imin][0])
-            # print ""
+            # print("")
+            # print("    problem)
+            # print("    cost ....." + str(lmod[imin]))
+            # print("    indexes .." + str(np.float64(zind[imin])))
+            # print("    before ..." + str(adjusted_dem[zind[imin]]))
+            # print("    after ...." + str(zmod[imin][0]))
+            # print("")
 
             # final adjusted dem with minimum cost
             adjusted_dem[zind[imin]]=zmod[imin]

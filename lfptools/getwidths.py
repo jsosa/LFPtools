@@ -7,13 +7,13 @@
 
 import sys
 import subprocess
-import ConfigParser
+import configparser
 import getopt
 import numpy as np
 import pandas as pd
-import gdal_utils
-import misc_utils
-import shapefile as sf
+import gdalutils
+from lfptools import shapefile
+from lfptools import misc_utils
 from osgeo import osr
 
 
@@ -23,7 +23,7 @@ def getwidths(argv):
     for o, a in opts:
         if o == "-i": inifile  = a
 
-    config = ConfigParser.SafeConfigParser()
+    config = configparser.SafeConfigParser()
     config.read(inifile)
 
     recf   = str(config.get('getslopes','recf'))
@@ -33,9 +33,9 @@ def getwidths(argv):
     output = str(config.get('getwidths','output'))
     thresh = np.float64(config.get('getwidths','thresh'))
 
-    print "    running getwidths.py..."
+    print("    running getwidths.py...")
 
-    w = sf.Writer(sf.POINT)
+    w = shapefile.Writer(shapefile.POINT)
     w.field('x')
     w.field('y')
     w.field('width')
@@ -44,8 +44,8 @@ def getwidths(argv):
     rec = pd.read_csv(recf)
 
     # Reading XXX_net.tif file
-    dat = gdal_utils.get_gdal_data(fwidth)
-    geo = gdal_utils.get_gdal_geo(fwidth)
+    dat = gdalutils.get_data(fwidth)
+    geo = gdalutils.get_geo(fwidth)
 
     iy,ix = np.where(dat>0)
     xdat = geo[8][ix]
@@ -82,7 +82,7 @@ def getwidths(argv):
     prj.write(srs.ExportToWkt())
     prj.close()
 
-    geo = gdal_utils.get_gdal_geo(netf)
+    geo = gdalutils.get_geo(netf)
 
     fmt    = "GTiff"
     nodata = -9999

@@ -12,13 +12,15 @@ import subprocess
 import shapefile
 import pandas as pd
 import numpy as np
-import gdal_utils
+import gdalutils
 from osgeo import osr
 from osgeo import gdal
 from prepdata_utils import cy_d82d4
 from prepdata_utils import cy_rastermask
 from prepdata_utils import cy_directions_tau
 from prepdata_utils import cy_rasterthreshold
+from prepdata_utils import calc_area
+
 
 def prepdata(argv):
 
@@ -144,6 +146,8 @@ def prepdata(argv):
     cat3tif         = './'+outf+'/basins3.tif'
     cat30tif        = './'+outf+'/basins30.tif'
     cat30tifd4      = './'+outf+'/basins30d4.tif'
+    are3tif         = './'+outf+'/area3.tif'
+    are30tif        = './'+outf+'/area30.tif'
 
     # create list of tiles in the region
     # write_list_files(dem3path,'.tif',dem3list)
@@ -175,7 +179,11 @@ def prepdata(argv):
         print "converting directions into TAUDEM directions..."
         directions_tau(dir3tif,dir3tau)
 
+        print "calculating area in extent..."
+        calculate_area(dir3tau,are3tif)
+
         # calculating accumulation using TauDEM
+        print "calculating flow accumulation via TAUDEM..."
         subprocess.call(["mpiexec","-n","20","aread8","-p",dir3tau,"-ad8",acc3tif,"-nc"])
 
         # thresholding accumulation to get river network
@@ -215,6 +223,10 @@ def prepdata(argv):
         print "converting directions into TAUDEM directions..."
         directions_tau(dir30tif,dir30tau)
 
+        print "calculating area in extent..."
+        calculate_area(dir30tau,are30tif)
+
+        print "calculating flow accumulation via TAUDEM..."
         subprocess.call(["mpiexec","-n","20","aread8","-p",dir30tau,"-ad8",acc30tif,"-nc"])
 
         print "thresholding accumulation to get river network..."
@@ -247,77 +259,6 @@ def prepdata(argv):
         if streamnet == 'yes':
             subprocess.call(["mpiexec","-n","10","streamnet","-fel",net30tifd4,"-p",dir30tau_maskd4,"-ad8",acc30tif,"-src",net30tifd4,"-ord",strn_ord30d4,"-tree",strn_tree30d4,"-coord",strn_coord30d4,"-net",stren_net30d4,"-w",stren_w30d4,"-o",out30shpd4])
 
-def get_gdal_data(filename):
-
-    """ Import gdal data in a numpy array """
-
-    ds   = gdal.Open(filename, gdal.GA_ReadOnly)
-    band = ds.GetRasterBand(1)
-    data = np.float64(band.ReadAsArray())
-    ds   = None
-    return data
-
-def get_gdal_geo(filename):
-
-    """ Read geo info from raster file """
-
-    ds   = gdal.Open(filename, gdal.GA_ReadOnly)
-    gt   = ds.GetGeoTransform()
-    nx   = np.int64(ds.RasterXSize)
-    ny   = np.int64(ds.RasterYSize)
-    resx = np.float64(gt[1])
-    resy = np.float64(gt[5])
-    xmin = np.float64(gt[0])
-    ymin = np.float64(gt[3]) + ny * resy
-    xmax = np.float64(gt[0]) + nx * resx
-    ymax = np.float64(gt[3])
-    x    = np.linspace(xmin+resx/2,xmin+resx/2+resx*(nx-1),nx)
-    y    = np.linspace(ymax+resy/2,ymax+resy/2+resy*(ny-1),ny)
-    srs  = osr.SpatialReference()
-    wkt  = ds.GetProjectionRef()
-    srs.ImportFromWkt(wkt)
-    ds   = None
-    geo  = [xmin,ymin,xmax,ymax,nx,ny,resx,resy,x,y,srs]
-    return geo
-
-def writeRaster(myarray,myraster,geo,fmt,nodata):
-
-    """ Write an array to Raster format defaul in GTiff format"""
-
-    # available data types:
-    if fmt == "Byte":
-        ofmt = gdal.GDT_Byte
-    elif fmt == "Float32":
-        ofmt = gdal.GDT_Float32
-    elif fmt == "Float64":
-        ofmt = gdal.GDT_Float64
-    elif fmt == "Int16":
-        ofmt = gdal.GDT_Int16
-    elif fmt == "Int32":
-        ofmt = gdal.GDT_Int32
-
-    xmin = geo[0]
-    ymin = geo[1]
-    xmax = geo[2]
-    ymax = geo[3]
-    nx   = geo[4]
-    ny   = geo[5]
-    resx = geo[6]
-    resy = geo[7]
-    x    = geo[8]
-    y    = geo[9]
-    srs  = geo[10]
-
-    driver = gdal.GetDriverByName('GTiff')
-
-    outRaster = driver.Create(myraster, nx, ny, 1, ofmt, ['COMPRESS=LZW'])
-    outRaster.SetGeoTransform((xmin, resx, 0, ymax, 0, resy))
-    outRaster.SetProjection(srs.ExportToWkt())
-
-    outband = outRaster.GetRasterBand(1)
-    outband.WriteArray(myarray)
-    outband.FlushCache()
-    outband.SetNoDataValue(nodata)
 
 def directions_tau(inputrast,outputrast):
 
@@ -328,10 +269,11 @@ def directions_tau(inputrast,outputrast):
     """
 
     nodata  = -32768
-    data    = get_gdal_data(inputrast)
-    datageo = get_gdal_geo(inputrast)
+    data    = get_data(inputrast)
+    datageo = get_geo(inputrast)
     datatau = cy_directions_tau(np.int16(data),np.int16(nodata))
-    writeRaster(np.float64(datatau),outputrast,datageo,"Int16",nodata)
+    gdalutils.write_raster(np.float64(datatau),outputrast,datageo,"Int16",nodata)
+
 
 def rasterthreshold(file,thres,fmt,outp):
 
@@ -340,10 +282,11 @@ def rasterthreshold(file,thres,fmt,outp):
     """
 
     nodata   = -1
-    filedata = get_gdal_data(file)
-    filegeo  = get_gdal_geo(file)
+    filedata = get_data(file)
+    filegeo  = get_geo(file)
     data     = cy_rasterthreshold(np.float64(filedata), np.float64(thres), np.float64(nodata))
-    writeRaster(np.float64(data),outp,filegeo,fmt,nodata)
+    gdalutils.write_raster(np.float64(data),outp,filegeo,fmt,nodata)
+
 
 def rastermask(file,mask,fmt,outp):
 
@@ -352,11 +295,12 @@ def rastermask(file,mask,fmt,outp):
     """
 
     nodata = -32768
-    filedata = get_gdal_data(file)
-    maskdata = get_gdal_data(mask)
-    filegeo  = get_gdal_geo(file)
+    filedata = get_data(file)
+    maskdata = get_data(mask)
+    filegeo  = get_geo(file)
     data     = cy_rastermask(np.float64(filedata),np.int16(maskdata))
-    writeRaster(np.float64(data),outp,filegeo,fmt,nodata)
+    gdalutils.write_raster(np.float64(data),outp,filegeo,fmt,nodata)
+
 
 def mosaic_region(inputpath,xmin,ymin,xmax,ymax,outputfile):
 
@@ -380,6 +324,7 @@ def mosaic_region(inputpath,xmin,ymin,xmax,ymax,outputfile):
 
     myoutput.close()
 
+
 def d82d4(filedir,filediro,fileneto):
 
     """
@@ -387,11 +332,12 @@ def d82d4(filedir,filediro,fileneto):
     """
 
     nodata   = -32768.
-    dirdata  = get_gdal_data(filedir)
-    dirgeo   = get_gdal_geo(filedir)
+    dirdata  = get_data(filedir)
+    dirgeo   = get_geo(filedir)
     data,net = cy_d82d4(np.int16(dirdata), np.int16(nodata))
-    writeRaster(np.int16(data),filediro,dirgeo,"Int16",nodata)
-    writeRaster(np.int16(net),fileneto,dirgeo,"Int16",nodata)
+    write_raster(np.int16(data),filediro,dirgeo,"Int16",nodata)
+    write_raster(np.int16(net),fileneto,dirgeo,"Int16",nodata)
+
 
 def listdir(path,ext):
 
@@ -404,6 +350,7 @@ def listdir(path,ext):
                 mylist.append(os.path.join(root, filename))
     return mylist
 
+
 def write_list_files(inputpath,ext,outputfile):
 
     mytiles  = listdir(inputpath,ext)
@@ -413,12 +360,13 @@ def write_list_files(inputpath,ext,outputfile):
         myoutput.write(mytiles[i]+'\n')
     myoutput.close()
 
+
 def write_outlets(outshp,dirtif_mask):
 
     proj = '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs'
 
-    dat = gdal_utils.get_gdal_data(dirtif_mask)
-    geo = gdal_utils.get_gdal_geo(dirtif_mask)
+    dat = gdalutils.get_data(dirtif_mask)
+    geo = gdalutils.get_geo(dirtif_mask)
     rows,cols = np.where(dat>0)
 
     x = []
@@ -446,6 +394,7 @@ def write_outlets(outshp,dirtif_mask):
     srs.ImportFromProj4(proj)
     prj.write(srs.ExportToWkt())
     prj.close() 
+
 
 def find_neighbours(dat,row,col):
 
@@ -485,26 +434,42 @@ def find_neighbours(dat,row,col):
 
     return np.array(nei)
 
+
 def create_dir_d4(dirtaud4,dirtaud8,dirtau_maskd4):
 
-    dat1 = gdal_utils.get_gdal_data(dirtaud8)
-    dat2 = gdal_utils.get_gdal_data(dirtau_maskd4)
-    geo  = gdal_utils.get_gdal_geo(dirtaud8)
+    dat1 = gdalutils.get_data(dirtaud8)
+    dat2 = gdalutils.get_data(dirtau_maskd4)
+    geo  = gdalutils.get_geo(dirtaud8)
 
     A = np.where(dat2>0)
     dat1[A] = dat2[A]
 
-    gdal_utils.writeRaster(dat1,dirtaud4,geo,"Int16",-32768)
+    gdalutils.write_raster(dat1,dirtaud4,geo,"Int16",-32768)
+
 
 def read_tree_taudem(treef):
     df = pd.read_csv(treef, sep='\t', names=['0','link_no','start_pnt','end_pnt','frst_ds','frst_us','scnd_us','strahler','mon_pnt','shreve'])
     df.drop(['0'], axis=1, inplace=True)
     return df
 
+
 def read_coord_taudem(coordf):
     df = pd.read_csv(coordf, sep='\t', names=['0','lon','lat','distance','elev','contr_area'])
     df.drop(['0'], axis=1, inplace=True)
     return df
+
+
+def calculate_area(filename,output):
+
+    geo  = gdalutils.get_geo(filename)
+    nx   = np.int16(geo[4])
+    ny   = np.int16(geo[5])
+    resx = np.float32(geo[6])
+    resy = np.float32(geo[7])
+    x    = np.float32(geo[8])
+    y    = np.float32(geo[9])
+    dat  = calc_area(nx,ny,resx,resy,x,y)
+    gdalutils.write_raster(dat,output,geo,"Float32",-9999)
 
 if __name__ == '__main__':
     prepdata(sys.argv[1:])

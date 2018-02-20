@@ -9,9 +9,11 @@ import os
 import sys
 import getopt
 import subprocess
-import ConfigParser
-import shapefile
-from gdal_utils import *
+import configparser
+import numpy as np
+from osgeo import osr
+from lfptools import shapefile
+import gdalutils
 from scipy.spatial.distance import cdist
 
 
@@ -21,7 +23,7 @@ def getbedelevs(argv):
     for o, a in opts:
         if o == "-i": inifile  = a
 
-    config = ConfigParser.SafeConfigParser()
+    config = configparser.SafeConfigParser()
     config.read(inifile)
     
     bnkf   = str(config.get('getbedelevs','bnkf'))
@@ -30,7 +32,7 @@ def getbedelevs(argv):
     output = str(config.get('getbedelevs','output'))
     proj   = str(config.get('getbedelevs','proj'))
 
-    print "    running getbedelevs.py..."
+    print("    running getbedelevs.py...")
 
     nodata = -9999
 
@@ -69,7 +71,7 @@ def getbedelevs(argv):
     fmt    = "GTiff"
     name1  = fname+".shp"
     name2  = fname+".tif"
-    mygeo  = get_gdal_geo(netf)
+    mygeo  = gdalutils.get_geo(netf)
     subprocess.call(["gdal_rasterize","-a_nodata",str(nodata),"-of",fmt,"-tr",str(mygeo[6]),str(mygeo[7]),"-a","bedelev","-a_srs",proj,"-te",str(mygeo[0]),str(mygeo[1]),str(mygeo[2]),str(mygeo[3]),name1,name2])
 
 def near(ddsx,ddsy,XA):

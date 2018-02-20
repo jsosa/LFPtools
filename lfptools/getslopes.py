@@ -8,12 +8,12 @@
 import sys
 import getopt
 import subprocess
-import ConfigParser
+import configparser
 import numpy as np
 import pandas as pd
-import gdal_utils
-import misc_utils
-import shapefile
+import gdalutils
+from lfptools import shapefile
+from lfptools import misc_utils
 from osgeo import osr
 from sklearn import linear_model
 
@@ -28,7 +28,7 @@ def getslopes(argv):
     for o, a in opts:
         if o == "-i": inifile = a
 
-    config = ConfigParser.SafeConfigParser()
+    config = configparser.SafeConfigParser()
     config.read(inifile)
 
     source = str(config.get('getslopes','source'))
@@ -38,11 +38,13 @@ def getslopes(argv):
     proj   = str(config.get('getslopes','proj'))
     step   = int(config.get('getslopes','step'))
 
+    print("    runnning get_slopes.py...")
+
     # Reading XXX_rec.csv file
     rec = pd.read_csv(recf)
 
     # Reading XXX_net.tif file
-    geo = gdal_utils.get_gdal_geo(netf)
+    geo = gdalutils.get_geo(netf)
 
     # Reading bank file (adjusted bank)
     elev = np.array(shapefile.Reader(source).records(),dtype='float64')

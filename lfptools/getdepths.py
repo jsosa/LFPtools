@@ -8,11 +8,11 @@
 import os
 import sys
 import subprocess
-import ConfigParser
+import configparser
 import getopt
 import numpy as np
-import shapefile as sf
-from gdal_utils import *
+from lfptools import shapefile
+import gdalutils
 from osgeo import osr
 from scipy.spatial.distance import cdist
 from scipy.optimize import fsolve
@@ -24,7 +24,7 @@ def getdepths(argv):
     for o, a in opts:
         if o == "-i": inifile  = a
 
-    config = ConfigParser.SafeConfigParser()
+    config = configparser.SafeConfigParser()
     config.read(inifile)
 
     proj   = str(config.get('getdepths','proj'))
@@ -32,7 +32,7 @@ def getdepths(argv):
     method = str(config.get('getdepths','method'))
     output = str(config.get('getdepths','output'))
 
-    print "    runnning get_depths.py..."
+    print("    runnning get_depths.py...")
 
     try:
         fdepth = str(config.get('getdepths','fdepth'))
@@ -54,7 +54,7 @@ def getdepths(argv):
 
     fname = output
 
-    w = sf.Writer(sf.POINT)
+    w = shapefile.Writer(shapefile.POINT)
     w.field('x')
     w.field('y')
     w.field('depth')
@@ -66,7 +66,7 @@ def getdepths(argv):
     elif method == "depth_manning":
         depth_manning(w,n,qbnkf,slpf,wdtf)
     else:
-        print "ESPECIFY A METHOD"
+        print("ESPECIFY A METHOD")
         sys.exit()
 
     # write final value in a shapefile
@@ -83,7 +83,7 @@ def getdepths(argv):
     fmt    = "GTiff"
     name1  = output+".shp"
     name2  = output+".tif"
-    mygeo  = get_gdal_geo(netf)
+    mygeo  = gdalutils.get_geo(netf)
     subprocess.call(["gdal_rasterize","-a_nodata",str(nodata),"-of",fmt,"-tr",str(mygeo[6]),str(mygeo[7]),"-a","depth","-a_srs",proj,"-te",str(mygeo[0]),str(mygeo[1]),str(mygeo[2]),str(mygeo[3]),name1,name2])
 
 def depth_raster(w,fdepth,path,catchment,thresh):
@@ -93,22 +93,22 @@ def depth_raster(w,fdepth,path,catchment,thresh):
     """
 
     # Uses the river network file in each catchment (Ex. 276_net30.tif)
-    net   = get_gdal_data(path+"/"+catchment+"/"+catchment+"_net30.tif")
-    geo   = get_gdal_geo(path+"/"+catchment+"/"+catchment+"_net30.tif")
+    net   = gdalutils.get_data(path+"/"+catchment+"/"+catchment+"_net30.tif")
+    geo   = gdalutils.get_geo(path+"/"+catchment+"/"+catchment+"_net30.tif")
     iy,ix = np.where(net>0)
     x     = geo[8][ix]
     y     = geo[9][iy]
 
     for i in range(len(x)):
 
-        print "getdepths.py - " + str(len(x)-i)
+        print("getdepths.py - " + str(len(x)-i))
         
         xmin  = x[i] - thresh
         ymin  = y[i] - thresh
         xmax  = x[i] + thresh
         ymax  = y[i] + thresh
 
-        depth,depth_geo = clip_raster(fdepth,xmin,ymin,xmax,ymax)
+        depth,depth_geo = gdalutils.clip_raster(fdepth,xmin,ymin,xmax,ymax)
 
         mydepth = nearpixel(depth,depth_geo[8],depth_geo[9],np.array([[y[i],x[i]]])) # nearest pixel river
         
@@ -118,13 +118,13 @@ def depth_raster(w,fdepth,path,catchment,thresh):
  
 def depth_geometry(w,r,p,wdtf):
 
-    width = np.array(sf.Reader(wdtf).records(),dtype='float64')
+    width = np.array(shapefile.Reader(wdtf).records(),dtype='float64')
     x     = width[:,0]
     y     = width[:,1]
 
     for i in range(width.shape[0]):
 
-        print "getdepths.py - " + str(width.shape[0]-i)
+        print("getdepths.py - " + str(width.shape[0]-i))
 
         mydepth = r*width[i,2]**p
 
@@ -136,15 +136,15 @@ def depth_geometry(w,r,p,wdtf):
 def depth_manning(f,n,qbnkf,slpf,wdtf):
 
     # load width shapefile
-    width = np.array(sf.Reader(wdtf).records(),dtype='float64')
+    width = np.array(shapefile.Reader(wdtf).records(),dtype='float64')
     xw    = width[:,0]
     yw    = width[:,1]
 
-    qbnk  = np.array(sf.Reader(qbnkf).records(),dtype='float64')
+    qbnk  = np.array(shapefile.Reader(qbnkf).records(),dtype='float64')
     xq    = qbnk[:,0]
     yq    = qbnk[:,1]
 
-    slope = np.array(sf.Reader(slpf).records(),dtype='float64')
+    slope = np.array(shapefile.Reader(slpf).records(),dtype='float64')
     xs    = slope[:,0]
     ys    = slope[:,1]
 
@@ -155,11 +155,11 @@ def depth_manning(f,n,qbnkf,slpf,wdtf):
         iiq = near(yq,xq,np.array([[xw[i],yw[i]]]))
         iis = near(ys,xs,np.array([[xw[i],yw[i]]]))
 
-        # DEBUG DEBUG DEBUG
-        # print xw[i],yw[i]
-        # print xq[iiq],yq[iiq]
-        # print xs[iis],ys[iis]
-        if (xw[i]!=xq[iiq]) | (xw[i]!=xs[iis]) | (yw[i]!=yq[iiq]) | (yw[i]!=ys[iis]):
+        if (np.float32(xw[i])!=np.float32(xq[iiq])) | (np.float32(xw[i])!=np.float32(xs[iis])) | (np.float32(yw[i])!=np.float32(yq[iiq])) | (np.float32(yw[i])!=np.float32(ys[iis])):
+
+            print(xw[i],yw[i])
+            print(xq[iiq],yq[iiq])
+            print(xs[iis],ys[iis])
             sys.exit("Coordinates are not equal")
 
         w = width[i,2]

@@ -1,0 +1,4 @@
+import sys
+from lfptools import getdepths
+
+getdepths.getdepths(sys.argv[1:])

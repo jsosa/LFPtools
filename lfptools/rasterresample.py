@@ -5,20 +5,15 @@
 # date: 12/may/2017
 # mail: j.sosa@bristol.ac.uk / sosa.jeison@gmail.com
 
-import copy_reg,types
-import sys,getopt,os,shutil
-import ConfigParser
+import os
+import sys
+import getopt
+import configparser
 import numpy as np
-import matplotlib.pyplot as plt
-from gdal_utils import *
-from osgeo import gdal,osr
-from scipy.ndimage import distance_transform_edt
-from scipy.spatial.distance import cdist
-from sklearn.cluster import KMeans
 import multiprocessing as mp
+import gdalutils
+from osgeo import osr
 
-import pdb
-# pdb.set_trace()
 
 def rasterresample(argv):
 
@@ -45,7 +40,7 @@ def rasterresample(argv):
     for o, a in opts:
         if o == "-i": inifile  = a
 
-    config   = ConfigParser.SafeConfigParser()
+    config   = configparser.SafeConfigParser()
     config.read(inifile)
 
     method   = str(config.get('rasterresample','method'))
@@ -59,12 +54,14 @@ def rasterresample(argv):
     resy     = -np.float64(config.get('rasterresample','resy')) # negative value to fit like in previous scripts
     nproc    = np.float64(config.get('rasterresample','nproc')) # number of cpus to use
 
+    print ("    running rasterresample.py...")
+
     fname1 = demf
     fname2 = output
 
     # coordinates for bank elevations are based in river network mask
-    net   = get_gdal_data(netf)
-    geo   = get_gdal_geo(netf)
+    net   = gdalutils.get_data(netf)
+    geo   = gdalutils.get_geo(netf)
     iy,ix = np.where(net>-1) # consider all pixels in net30 including river network pixels
     x     = geo[8][ix]
     y     = geo[9][iy]
@@ -95,7 +92,7 @@ def rasterresample(argv):
     elev = np.hstack(results).reshape(net.shape)
 
     # elev = calc_resampling(fname1,hrnodata,x,y,ix,iy,thresh,outlier,method)
-    writeRaster(elev,fname2,geo,"Float32",hrnodata) 
+    gdalutils.write_raster(elev,fname2,geo,"Float32",hrnodata) 
 
 def calc_resampling_mp(pos,queue,fname1,hrnodata,x,y,thresh,outlier,method):
 
@@ -103,14 +100,14 @@ def calc_resampling_mp(pos,queue,fname1,hrnodata,x,y,thresh,outlier,method):
 
     for i in range(len(x)):
 
-        print "rasterresample.py - " + str(len(x)-i)
+        # print("rasterresample.py - " + str(len(x)-i))
 
         xmin = x[i] - thresh
         ymin = y[i] - thresh
         xmax = x[i] + thresh
         ymax = y[i] + thresh
 
-        dem,dem_geo = clip_raster(fname1,xmin,ymin,xmax,ymax)
+        dem,dem_geo = gdalutils.clip_raster(fname1,xmin,ymin,xmax,ymax)
         ddem        = np.ma.masked_where(dem==hrnodata,dem)
         shape       = dem.shape
         
@@ -126,7 +123,7 @@ def calc_resampling(fname1,hrnodata,x,y,ix,iy,thresh,outlier,method):
 
     for i in range(len(x)):
         
-        print "rasterresample.py - " + str(len(x)-i)
+        # print("rasterresample.py - " + str(len(x)-i))
 
         xmin = x[i] - thresh
         ymin = y[i] - thresh
