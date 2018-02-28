@@ -15,7 +15,7 @@ binaries=['bin/lfp-fixelevs',
 ]
 
 ext_modules=[
-    Extension("prepdata_utils", ["lfptools/prepdata_utils.pyx"],
+    Extension("lfptools.prepdata_utils", ["lfptools/prepdata_utils.pyx"],
         include_dirs=[numpy.get_include()],
     )
 ]
