@@ -393,35 +393,35 @@ def find_neighbours(dat,row,col):
     try:
         nei.append(dat[row,col+1])
     except IndexError:
-        nei.append(np.nan)
+        nei.append(9999)
     try:
         nei.append(dat[row-1,col+1])
     except IndexError:
-        nei.append(np.nan)
+        nei.append(9999)
     try:
         nei.append(dat[row-1,col])
     except IndexError:
-        nei.append(np.nan)
+        nei.append(9999)
     try:
         nei.append(dat[row-1,col-1])
     except IndexError:
-        nei.append(np.nan)
+        nei.append(9999)
     try:
         nei.append(dat[row,col-1])
     except IndexError:
-        nei.append(np.nan)
+        nei.append(9999)
     try:
         nei.append(dat[row+1,col-1])
     except IndexError:
-        nei.append(np.nan)
+        nei.append(9999)
     try:
         nei.append(dat[row+1,col])
     except IndexError:
-        nei.append(np.nan)
+        nei.append(9999)
     try:
         nei.append(dat[row+1,col+1])
     except IndexError:
-        nei.append(np.nan)
+        nei.append(9999)
 
     return np.array(nei)
 
