@@ -157,8 +157,8 @@ def prepdata(argv):
     are30tif        = './'+out+'/area30.tif'
 
     # Clipping DEM and river width .vrt files
-    # subprocess.call(["gdalwarp","-ot","Float32","-te",str(xmin),str(ymin),str(xmax),str(ymax),"-overwrite","-dstnodata","-9999","-co","BIGTIFF=YES",_dem,dem3tif])
-    # subprocess.call(["gdalwarp","-ot","Float32","-te",str(xmin),str(ymin),str(xmax),str(ymax),"-overwrite","-dstnodata","-9999","-co","BIGTIFF=YES",_wth,wth3tif])
+    subprocess.call(["gdalwarp","-ot","Float32","-te",str(xmin),str(ymin),str(xmax),str(ymax),"-overwrite","-dstnodata","-9999","-co","BIGTIFF=YES",_dem,dem3tif])
+    subprocess.call(["gdalwarp","-ot","Float32","-te",str(xmin),str(ymin),str(xmax),str(ymax),"-overwrite","-dstnodata","-9999","-co","BIGTIFF=YES",_wth,wth3tif])
 
     if res == 3:
 
@@ -384,7 +384,14 @@ def write_outlets(outshp,dirtif_mask):
     srs = osr.SpatialReference()
     srs.ImportFromProj4(proj)
     prj.write(srs.ExportToWkt())
-    prj.close() 
+    prj.close()
+
+    typ    = "Byte"
+    fmt    = "GTiff"
+    nodata = 0
+    name1  = os.path.dirname(outshp)+'/'+os.path.basename(outshp).split('.')[0] + '.shp'
+    name2  = os.path.dirname(outshp)+'/'+os.path.basename(outshp).split('.')[0] + '.tif'
+    subprocess.call(["gdal_rasterize","-a_nodata",str(nodata),"-ot",typ,"-of",fmt,"-tr",str(geo[6]),str(geo[7]),"-burn","1","-a_srs",proj,"-te",str(geo[0]),str(geo[1]),str(geo[2]),str(geo[3]),name1,name2])
 
 
 def find_neighbours(dat,row,col):
@@ -461,6 +468,7 @@ def calculate_area(filename,output):
     y    = np.float32(geo[9])
     dat  = calc_area(nx,ny,resx,resy,x,y)
     gdalutils.write_raster(np.array(dat),output,geo,"Float32",-9999)
+
 
 def multiply_rasters(rast1,rast2,out):
 
