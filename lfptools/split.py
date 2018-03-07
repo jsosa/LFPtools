@@ -59,6 +59,8 @@ def split(argv):
     nettif = str(config.get('split','nettif'))
     wthtif = str(config.get('split','wthtif'))
     dirtif = str(config.get('split','dirtif'))
+    otltif = str(config.get('split','otltif'))
+    aretif = str(config.get('split','aretif'))
     tretxt = str(config.get('split','tretxt'))
     cootxt = str(config.get('split','cootxt'))
     outdir = str(config.get('split','outdir'))
@@ -72,116 +74,126 @@ def split(argv):
     if basnum == "all":
         # Loop over all catchment numbers
         for nc in np.unique(catarr[catarr>0]): # Catchments should be numbered and > 0
-            basinsplit(nc,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,tretxt,cootxt)
+            basinsplit(nc,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,aretif,otltif,tretxt,cootxt)
     else:
         # Process a single catchment
-        basinsplit(np.int(basnum),outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,tretxt,cootxt)
+        basinsplit(np.int(basnum),outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,aretif,otltif,tretxt,cootxt)
 
 
-def basinsplit(ncatch,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,tretxt,cootxt):
-    
-    # Create basin folder
-    ncatchstr = "%03d" % ncatch
-    folder = outdir + "/" + ncatchstr
-    try:
-        os.makedirs(folder)
-    except OSError:
-        if not os.path.isdir(folder):
-            raise
+def basinsplit(ncatch,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,aretif,otltif,tretxt,cootxt):
 
-    # Get extend for every catchment
+    # Get extend for every catchment and area
     catarr  = gdalutils.get_data(cattif)
     catgeo  = gdalutils.get_geo(cattif)
-    row,col = np.where(catarr==ncatch)
-    xmin    = catgeo[8][min(col)]
-    xmax    = catgeo[8][max(col)]
-    ymin    = catgeo[9][max(row)]
-    ymax    = catgeo[9][min(row)]
+    area    = gdalutils.get_data(aretif)
+    direc   = gdalutils.get_data(otltif)
+    dat     = catarr==ncatch
+    row,col = np.where(dat)
+    _sum    = np.sum(dat*area)
+    _dir    = np.sum(dat*direc)
+    _dirlet = getdirletter(_dir)
 
-    # Clip input rasters
-    netarr_tmp,netgeo_tmp = gdalutils.clip_raster(nettif,xmin,ymin,xmax,ymax)
-    catarr_tmp,catgeo_tmp = gdalutils.clip_raster(cattif,xmin,ymin,xmax,ymax)
+    if _sum >= 100: # be sure basin is larger than 100 Km2
 
-    # Mask only the catchment and fill with zeros
-    netarr_tmp = np.where(catarr_tmp==ncatch,netarr_tmp,0)
+        ncatchstr = "%03d" % ncatch
+        folder = outdir + "/" + ncatchstr
+        create_out_folder(folder)
 
-    # Clipping tree and coord files based on nettif > 0, coordinates
-    tree  = misc_utils.read_tree_taudem(tretxt)
-    coor  = misc_utils.read_coord_taudem(cootxt)
-    iy,ix = np.where(netarr_tmp > 0)
-    Xrav  = netgeo_tmp[8][ix]
-    Yrav  = netgeo_tmp[9][iy]
+        xmin = catgeo[8][min(col)]
+        xmax = catgeo[8][max(col)]
+        ymin = catgeo[9][max(row)]
+        ymax = catgeo[9][min(row)]
 
-    # Clipping coord file (it may be improved, calculation takes some time)
-    lfp_coor = pd.DataFrame()
-    for i in range(len(Xrav)):
-        dis,ind = misc_utils.near_euc(coor['lon'].values,coor['lat'].values,(Xrav[i],Yrav[i]))
-        if dis <= 0.01:
-            lfp_coor = lfp_coor.append(coor.loc[ind,:])
-    lfp_coor = lfp_coor[['lon','lat','distance','elev','contr_area']]
-    lfp_coor.index.name = 'index'
-    lfp_coor.sort_index(inplace=True)
-    lfp_coor.drop_duplicates(inplace=True) # Remove duplicates just in case
+        # Clip input rasters
+        netarr_tmp,netgeo_tmp = gdalutils.clip_raster(nettif,xmin,ymin,xmax,ymax)
+        catarr_tmp,catgeo_tmp = gdalutils.clip_raster(cattif,xmin,ymin,xmax,ymax)
 
-    # Clipping tree file
-    lfp_tree = pd.DataFrame()
-    for i in tree.index:
-        sta = tree.loc[i,'start_pnt']
-        end = tree.loc[i,'end_pnt']
-        lon1 = coor.loc[sta,'lon']
-        lat1 = coor.loc[sta,'lat']
-        lon2 = coor.loc[end,'lon']
-        lat2 = coor.loc[end,'lat']
-        dis1,ind1 = misc_utils.near_euc(lfp_coor['lon'].values,lfp_coor['lat'].values,(lon1,lat1))
-        dis2,ind2 = misc_utils.near_euc(lfp_coor['lon'].values,lfp_coor['lat'].values,(lon2,lat2))
-        if (dis1 <= 0.01) & (dis2 <= 0.01):
-            lfp_tree = lfp_tree.append(tree.loc[i,:])
-    lfp_tree = lfp_tree[['link_no','start_pnt','end_pnt','frst_ds','frst_us','scnd_us','strahler','mon_pnt','shreve']]
-    lfp_tree.index.name = 'index'
+        # Mask only the catchment and fill with zeros
+        netarr_tmp = np.where(catarr_tmp==ncatch,netarr_tmp,0)
 
-    # Writing clipped coord and tree files
-    fnametre = folder + "/" + ncatchstr +"_tre.csv"
-    fnamecoo = folder + "/" + ncatchstr +"_coo.csv"
-    lfp_coor.to_csv(fnamecoo)
-    lfp_tree.to_csv(fnametre,float_format='%i')
+        # Clipping tree and coord files based on nettif > 0, coordinates
+        tree  = misc_utils.read_tree_taudem(tretxt)
+        coor  = misc_utils.read_coord_taudem(cootxt)
+        iy,ix = np.where(netarr_tmp > 0)
+        Xrav  = netgeo_tmp[8][ix]
+        Yrav  = netgeo_tmp[9][iy]
 
-    # Creating XXX_rec.csv file
-    fnamerec = folder + "/" + ncatchstr +"_rec.csv"
-    connections(fnametre,fnamecoo,fnamerec)
+        # Clipping coord file (it may be improved, calculation takes some time)
+        lfp_coor = pd.DataFrame()
+        for i in range(len(Xrav)):
+            dis,ind = misc_utils.near_euc(coor['lon'].values,coor['lat'].values,(Xrav[i],Yrav[i]))
+            if dis <= 0.01:
+                lfp_coor = lfp_coor.append(coor.loc[ind,:])
+        lfp_coor = lfp_coor[['lon','lat','distance','elev','contr_area']]
+        lfp_coor.index.name = 'index'
+        lfp_coor.sort_index(inplace=True)
+        lfp_coor.drop_duplicates(inplace=True) # Remove duplicates just in case
 
-    # Finding xmin, xmax, ymin, ymax based on river network points
-    rec  = pd.read_csv(fnamerec)
-    xmin = rec['lon'].min()
-    xmax = rec['lon'].max()
-    ymin = rec['lat'].min()
-    ymax = rec['lat'].max()
+        # Clipping tree file
+        lfp_tree = pd.DataFrame()
+        for i in tree.index:
+            sta = tree.loc[i,'start_pnt']
+            end = tree.loc[i,'end_pnt']
+            lon1 = coor.loc[sta,'lon']
+            lat1 = coor.loc[sta,'lat']
+            lon2 = coor.loc[end,'lon']
+            lat2 = coor.loc[end,'lat']
+            dis1,ind1 = misc_utils.near_euc(lfp_coor['lon'].values,lfp_coor['lat'].values,(lon1,lat1))
+            dis2,ind2 = misc_utils.near_euc(lfp_coor['lon'].values,lfp_coor['lat'].values,(lon2,lat2))
+            if (dis1 <= 0.01) & (dis2 <= 0.01):
+                lfp_tree = lfp_tree.append(tree.loc[i,:])
+        lfp_tree = lfp_tree[['link_no','start_pnt','end_pnt','frst_ds','frst_us','scnd_us','strahler','mon_pnt','shreve']]
+        lfp_tree.index.name = 'index'
 
-    # Clipping rasters
-    demarrcli,demgeocli = gdalutils.clip_raster(demtif,xmin,ymin,xmax,ymax)
-    accarrcli,accgeocli = gdalutils.clip_raster(acctif,xmin,ymin,xmax,ymax)
-    wtharrcli,wthgeocli = gdalutils.clip_raster(wthtif,xmin,ymin,xmax,ymax)
-    dirarrcli,dirgeocli = gdalutils.clip_raster(dirtif,xmin,ymin,xmax,ymax)
-    netarrcli,netgeocli = gdalutils.clip_raster(nettif,xmin,ymin,xmax,ymax)
-    catarrcli,catgeocli = gdalutils.clip_raster(cattif,xmin,ymin,xmax,ymax)
+        # Writing clipped coord and tree files
+        fnametre = folder + "/" + ncatchstr +"_tre.csv"
+        fnamecoo = folder + "/" + ncatchstr +"_coo.csv"
+        lfp_coor.to_csv(fnamecoo)
+        lfp_tree.to_csv(fnametre,float_format='%i')
 
-    # Mask only the catchment and fill with zeros
-    netarrcli = np.where(catarrcli==ncatch,netarrcli,0)
-    dirarrcli = np.where(catarrcli==ncatch,dirarrcli,0)
+        # Creating XXX_rec.csv file
+        fnamerec = folder + "/" + ncatchstr +"_rec.csv"
+        connections(fnametre,fnamecoo,fnamerec)
 
-    # Creating output names
-    fnamedem = folder + "/" + ncatchstr +"_dem.tif"
-    fnameacc = folder + "/" + ncatchstr +"_acc.tif"
-    fnamenet = folder + "/" + ncatchstr +"_net.tif"
-    fnamewth = folder + "/" + ncatchstr +"_wth.tif"
-    fnamedir = folder + "/" + ncatchstr +"_dir.tif"
+        # Finding xmin, xmax, ymin, ymax based on river network points
+        rec  = pd.read_csv(fnamerec)
+        xmin = rec['lon'].min()
+        xmax = rec['lon'].max()
+        ymin = rec['lat'].min()
+        ymax = rec['lat'].max()
 
-    # Writing clipped arrays
-    nodata = -9999
-    gdalutils.write_raster(demarrcli,fnamedem,demgeocli,"Float32",nodata)
-    gdalutils.write_raster(accarrcli,fnameacc,accgeocli,"Float32",nodata)
-    gdalutils.write_raster(netarrcli,fnamenet,netgeocli,"Float32",nodata)
-    gdalutils.write_raster(wtharrcli,fnamewth,wthgeocli,"Float32",nodata)
-    gdalutils.write_raster(dirarrcli,fnamedir,dirgeocli,"Float32",nodata)
+        # Get fixed extent
+        xmin,ymin,xmax,ymax = get_extent_outlet(_dirlet,0.1,xmin,ymin,xmax,ymax)
+
+        # Clipping rasters
+        demarrcli,demgeocli = gdalutils.clip_raster(demtif,xmin,ymin,xmax,ymax)
+        accarrcli,accgeocli = gdalutils.clip_raster(acctif,xmin,ymin,xmax,ymax)
+        wtharrcli,wthgeocli = gdalutils.clip_raster(wthtif,xmin,ymin,xmax,ymax)
+        dirarrcli,dirgeocli = gdalutils.clip_raster(dirtif,xmin,ymin,xmax,ymax)
+        netarrcli,netgeocli = gdalutils.clip_raster(nettif,xmin,ymin,xmax,ymax)
+        catarrcli,catgeocli = gdalutils.clip_raster(cattif,xmin,ymin,xmax,ymax)
+
+        # Mask only the catchment and fill with zeros
+        netarrcli = np.where(catarrcli==ncatch,netarrcli,0)
+        dirarrcli = np.where(catarrcli==ncatch,dirarrcli,0)
+
+        # Creating output names
+        fnamedem = folder + "/" + ncatchstr +"_dem.tif"
+        fnameacc = folder + "/" + ncatchstr +"_acc.tif"
+        fnamenet = folder + "/" + ncatchstr +"_net.tif"
+        fnamewth = folder + "/" + ncatchstr +"_wth.tif"
+        fnamedir = folder + "/" + ncatchstr +"_dir.tif"
+
+        # Writing clipped arrays
+        nodata = -9999
+        gdalutils.write_raster(demarrcli,fnamedem,demgeocli,"Float32",nodata)
+        gdalutils.write_raster(accarrcli,fnameacc,accgeocli,"Float32",nodata)
+        gdalutils.write_raster(netarrcli,fnamenet,netgeocli,"Float32",nodata)
+        gdalutils.write_raster(wtharrcli,fnamewth,wthgeocli,"Float32",nodata)
+        gdalutils.write_raster(dirarrcli,fnamedir,dirgeocli,"Float32",nodata)
+
+    else:
+        print("NOT PROCESSED: Basin lower than 100 Km2")
 
 def connections(treef,coorf,outfile):
     
@@ -257,6 +269,60 @@ def connections(treef,coorf,outfile):
 
     # Writing file
     df_rec.to_csv(outfile)
+
+def create_out_folder(folder):
+
+    try:
+        os.makedirs(folder)
+    except OSError:
+        if not os.path.isdir(folder):
+            raise
+
+def getdirletter(dirval):
+
+    if dirval == 1:
+        dirlet = "E"
+    elif dirval == 3:
+        dirlet = "N"
+    elif dirval == 5:
+        dirlet = "W"
+    elif dirval == 7:
+        dirlet = "S"
+    else:
+        sys.exit('ERROR: Wrong direction found')
+    return dirlet
+
+def get_extent_outlet(dirlet,thresh,_xmin,_ymin,_xmax,_ymax):
+
+    if dirlet == "E":
+
+        xmin = _xmin - thresh
+        ymin = _ymin - thresh
+        xmax = _xmax
+        ymax = _ymax + thresh
+
+    elif dirlet == "O":
+
+        xmin = _xmin
+        ymin = _ymin - thresh
+        xmax = _xmax + thresh
+        ymax = _ymax + thresh
+
+    elif dirlet == "N":
+
+        xmin = _xmin - thresh
+        ymin = _ymin - thresh
+        xmax = _xmax + thresh
+        ymax = _ymax
+        
+    elif dirlet == "S":
+
+        xmin = _xmin - thresh
+        ymin = _ymin
+        xmax = _xmax + thresh
+        ymax = _ymax + thresh   
+
+    return (xmin,ymin,xmax,ymax)
 
 if __name__ == '__main__':
     split(sys.argv[1:])

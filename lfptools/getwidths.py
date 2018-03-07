@@ -26,7 +26,7 @@ def getwidths(argv):
     config = configparser.SafeConfigParser()
     config.read(inifile)
 
-    recf   = str(config.get('getslopes','recf'))
+    recf   = str(config.get('getwidths','recf'))
     netf   = str(config.get('getwidths','netf'))
     proj   = str(config.get('getwidths','proj'))
     fwidth = str(config.get('getwidths','fwidth'))
