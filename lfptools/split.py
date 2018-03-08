@@ -193,7 +193,7 @@ def basinsplit(ncatch,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,aretif,ot
         gdalutils.write_raster(dirarrcli,fnamedir,dirgeocli,"Float32",nodata)
 
     else:
-        print("NOT PROCESSED: Basin lower than 100 Km2")
+        print("NOT PROCESSED: Basin area lower than 100 Km2 : " + str(_sum) + " KM**2 in basin number " + str(ncatch))
 
 def connections(treef,coorf,outfile):
     
