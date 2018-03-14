@@ -86,11 +86,12 @@ def basinsplit(ncatch,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,aretif,ot
     catarr  = gdalutils.get_data(cattif)
     catgeo  = gdalutils.get_geo(cattif)
     area    = gdalutils.get_data(aretif)
-    direc   = gdalutils.get_data(otltif)
+    outlet  = gdalutils.get_data(otltif)
+    direc   = gdalutils.get_data(dirtif)
     dat     = catarr==ncatch
     row,col = np.where(dat)
     _sum    = np.sum(dat*area)
-    _dir    = np.sum(dat*direc)
+    _dir    = np.sum(dat*outlet*direc)
     _dirlet = getdirletter(_dir)
 
     if _sum >= 100: # be sure basin is larger than 100 Km2
