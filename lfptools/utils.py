@@ -14,7 +14,6 @@ from osgeo import osr
 
 
 # TODO:
-    # update listing dir by using from glob import glob
     # include projection info when creating the netcdf file
 
 

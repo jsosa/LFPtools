@@ -65,7 +65,7 @@ def split(argv):
     cootxt = str(config.get('split','cootxt'))
     outdir = str(config.get('split','outdir'))
 
-    print("    running slipt.py...")
+    print("    running split.py...")
 
     # Loading data
     catarr = gdalutils.get_data(cattif)
@@ -301,7 +301,7 @@ def get_extent_outlet(dirlet,thresh,_xmin,_ymin,_xmax,_ymax):
         xmax = _xmax
         ymax = _ymax + thresh
 
-    elif dirlet == "O":
+    elif dirlet == "W":
 
         xmin = _xmin
         ymin = _ymin - thresh
