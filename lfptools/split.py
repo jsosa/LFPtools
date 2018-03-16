@@ -2,7 +2,6 @@
 
 # inst: university of bristol
 # auth: jeison sosa
-# date: 26/jun/2017
 # mail: j.sosa@bristol.ac.uk / sosa.jeison@gmail.com
 
 import os
@@ -17,33 +16,60 @@ from lfptools import misc_utils
 def split(argv):
     
     """
-    Split area by catchments
+    Info:
+    -----
+    Split area per basins
 
-    Parameters
-    ----------
+    Check if basin area is larger than 100 Km2, if yes, it continues
 
-    basnum : basin number
-    cattif : catchment file masking every catchment
-    demtif : DEM
-    acctif : accumulation
-    nettif : river network
-    wthtif : river width
-    dirtif : direction
-    tretxt : tree file
-    cootxt : coordinates file
-    outdir : output directory
+    Check if number of pixels in river network is larger than 35, if yes, continues
 
-    Returns
+    Clip tree and coord files
+
+    To Clip .tif files, it checks outlet direction and increases 0.1 degrees from 
+    boundaries but no in the outlet boundary since it will obstruct the outflow.
+
+    There is a “connections” function which finds connections between links. 
+    Basically, creates a NNN_rec.csv file containing all river coordinates, three 
+    classifications: 1) classification per “link” (given by TAUDEM), 2) classification 
+    per reach (coordinates belonging to longer link) and 3) classification per 
+    downstream link (given by TAUDEM), other features were added like strahler number 
+    (given by TAUDEM) and distance to outlet (given by TAUDEM).
+
+
+    Dependencies:
+    -------------
+    TAUDEM : streamnet, gagewatershed
+    GDAL : gdalwarp
+    Pandas, Numpy, GDAL Python API, gdalutils, prepdata_utils
+
+
+    Inputs:
     -------
+    basnum : Basin number or the keyword “all” to process
+    cattif : A GDAL raster file containing basin numbers (one number per basin)
+    demtif : DEM in GDAL raster
+    acctif : Accumulation GDAL raster
+    nettif : River network GDAL raster
+    wthtif : River width GDAL raster
+    dirtif : Flow directions GDAL raster
+    aretif : Area GDAL raster
+    otltif : Outlets GDAL raster
+    tretxt : Tree file from TAUDEM
+    cootxt : Coord file from TAUDEM
+    outdir : Out path
 
-    XXX_dem.tif : DEM
-    XXX_net.tif : river network mask
-    XXX_wth.tif : river width
-    XXX_acc.tif : accumulation
-    XXX_dir.tif : direction
-    XXX_tre.csv : tree file
-    XXX_coo.csv : coordinates dile
-    XXX_rec.csv : summary file
+
+    Outputs (If running at 30s):
+    ----------------------------
+    NNN_acc.tif
+    NNN_coo.csv
+    NNN_dem.tif
+    NNN_dir.tif
+    NNN_net.tif
+    NNN_rec.csv
+    NNN_tre.csv
+    NNN_wth.tif
     """
 
     opts, args = getopt.getopt(argv,"i:")
@@ -155,12 +181,14 @@ def basinsplit(ncatch,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,aretif,ot
             lfp_coor.to_csv(fnamecoo)
             lfp_tree.to_csv(fnametre,float_format='%i')
 
-            # Creating XXX_rec.csv file
-            fnamerec = folder + "/" + ncatchstr +"_rec.csv"
-            connections(fnametre,fnamecoo,fnamerec)
+            # Creating rec dataframe
+            rec = connections(fnametre,fnamecoo)
 
-            # Finding xmin, xmax, ymin, ymax based on river network points
-            rec  = pd.read_csv(fnamerec)
+            #  Writing XXX_rec.csv file
+            fnamerec = folder + "/" + ncatchstr +"_rec.csv"
+            rec.to_csv(fnamerec)
+
+            # Get extent from rec dataframe
             xmin = rec['lon'].min()
             xmax = rec['lon'].max()
             ymin = rec['lat'].min()
@@ -201,13 +229,13 @@ def basinsplit(ncatch,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,aretif,ot
     else:
         print("NOT PROCESSED: Basin area lower than 100 Km2 : " + str(_sum) + " KM**2 in basin number " + str(ncatch))
 
-def connections(treef,coorf,outfile):
+def connections(treef,coorf):
     
     """
     Finds connections between links and sort them
     First finds the connections for all links, then sort them
     starting from the link with more downstream connections, later
-    write separate files inclusing coordinates and links
+    write separate files including coordinates and links
     """
     
     def find_links(link):
@@ -259,7 +287,6 @@ def connections(treef,coorf,outfile):
             c+=1
             df_cor['reach'] = int(c)
             df_rec = pd.concat([df_rec,df_cor])
-    df_rec.to_csv(outfile)
 
     # Retrieving Strahler number
     dslk = []
@@ -273,8 +300,7 @@ def connections(treef,coorf,outfile):
     df_rec['strahler'] = stra
     df_rec['dslink'] = dslk
 
-    # Writing file
-    df_rec.to_csv(outfile)
+    return df_rec
 
 def create_out_folder(folder):
 

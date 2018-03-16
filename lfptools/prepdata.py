@@ -2,7 +2,6 @@
 
 # inst: university of bristol
 # auth: jeison sosa
-# date: 22/nov/2017
 # mail: j.sosa@bristol.ac.uk / sosa.jeison@gmail.com
 
 import os
@@ -26,36 +25,67 @@ from lfptools.prepdata_utils import calc_area
 def prepdata(argv):
 
     """
-    Program to extract Digital Elevation Model, Flow direction map and River width
-    from Yamazaki's datasets. This program clip flow directions based on a specified
-    box, then flow accumulation is calcualted by using TauDEM. A threshold is applied
-    to define a river network mask
+    Info
+    ----
+    Delineate basins in the specified area
+
+    Clip globally gridded distributed DEM, Hydrography and River Width data.
+    
+    Two parameters are required in this program: 1) Threshold and 2) Extent.
+    Threshold to define river network in Km2. For example 5000 will delineate
+    a river network with upslope area larger than 5000 Km2. Extent defines 
+    clipped area. Four parameters should be indicated: xmin, ymin, xmax and ymax.
+
 
     Dependencies
     ------------
-
+    TAUDEM : streamnet, gagewatershed
     GDAL : gdalwarp
-    TauDEM : streamnet
+    Pandas, Numpy, GDAL Python API, gdalutils, lfptools.prepdata_utils
 
-    Parameters
-    ----------
 
-    <predata.cfg> file containing this text:
+    Inputs
+    ------
+    te : Clipping box specified as xmin,ymin,xmax,ymax (no space after commas!)
+    out : Output folder
+    dem : Any GDAL format (e.g. .tif, .vrt) containing DEM info
+    acc : Any GDAL format (e.g. .tif, .vrt) containing accumulation info
+    dir : Any GDAL format (e.g. .tif, .vrt) containing flow direction info
+    wth : Any GDAL format (e.g. .tif, .vrt) containing river width info
+    thresh : Threshold to mask flow accumulation in KM**2
+    streamnet : Calculate tree and coord files <yes/no>
 
-    [prepdata]
 
-    te        = clipping box specified as xmin,ymin,xmax,ymax (no space after comma!)
-    out       = output folder
-    dem       = Any GDAL format (e.g. .tif, .vrt) containing DEM info
-    acc       = Any GDAL format (e.g. .tif, .vrt) containing accumulation info
-    dir       = Any GDAL format (e.g. .tif, .vrt) containing flow direction info
-    wth       = Any GDAL format (e.g. .tif, .vrt) containing river width info
-    thresh    = threshold to mask flow accumulation in KM**2
-    streamnet = calculate tree and coord files <yes/no>
-
-    Usage
-    -----
-    $ lfp-prepdata -i params.cfg
+    Outputs (If running at 30s)
+    ---------------------------
+    acc30.tif
+    acc30_.tif
+    area30.tif
+    basins30.tif
+    basins30d4.tif
+    dem3.tif
+    dir30.tif
+    dir30tau.tif
+    dir30tau_mask.tif
+    dir30tau_maskd4.tif
+    dir30taud4.tif
+    net30.tif
+    net30d4.tif
+    out30.shp
+    out30.tif
+    out30d4.shp
+    out30d4.tif
+    stren_net30d4.out (folder)
+    stren_net30d8.out (folder)
+    stren_w30d4.tif
+    stren_w30d8.tif
+    strn_coord30d4.txt
+    strn_coord30d8.txt
+    strn_ord30d4.tif
+    strn_ord30d8.tif
+    strn_tree30d4.txt
+    strn_tree30d8.txt
+    wth3.tif
     """
 
     opts, args = getopt.getopt(argv,"i:")
