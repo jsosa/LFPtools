@@ -48,6 +48,7 @@ def read_mass(filename,date1='1990-01-01'):
 
     df = pd.read_csv(filename, delim_whitespace=True)
     df = _secs_to_time(df,date1)
+    df['res'] = np.arange(0,df.index.size)
     return df
 
 
