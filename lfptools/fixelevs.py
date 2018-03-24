@@ -201,5 +201,19 @@ def bank4flood(dem):
 
     return adjusted_dem
 
+# def lowless(dem):
+
+"""
+LOWESS (Locally Weighted Scatterplot Smoothing)
+"""
+
+    # lowess = sm.nonparametric.lowess
+    # y = mysum_04[mysum_04['reach']==2].dembnk.values
+    # yama = bank4flood(y)
+    # x = np.arange(0,y.size)
+    # z = lowess(y, x)
+    # w = lowess(y, x, frac=1/3)
+    # pd.DataFrame({'sim02':mysum_02[mysum_02['reach']==2].dembnk.values,'sim04':y,'frac0p3':w[:,1],'yamazaki':yama}).vgplot()
+
 if __name__ == '__main__':
     fixelevs(sys.argv[1:])

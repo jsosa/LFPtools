@@ -19,6 +19,7 @@ from osgeo import osr
 
 def _secs_to_time(df,date1):
 
+    df = df.copy()
     conversion = 86400 # 86400s = 1day
     df['time'] = pd.to_datetime(df['Time']/conversion,unit='D',origin=pd.Timestamp(date1)) 
     df.set_index(df['time'],inplace=True)
@@ -29,6 +30,7 @@ def _secs_to_time(df,date1):
 
 def _hours_to_time(df,date1):
 
+    df = df.copy()
     conversion = 24 # 24h = 1day
     df['time'] = pd.to_datetime(df['Time']/conversion,unit='D',origin=pd.Timestamp(date1)) 
     df.set_index(df['time'],inplace=True)
@@ -104,6 +106,15 @@ def read_bdy(filename,bcifile,date1='1990-01-01'):
     bdy.columns = read_bci(bcifile).name.values
 
     return bdy
+
+
+def read_par(filename):
+
+    df = pd.read_csv(filename, delim_whitespace=True, header=None, index_col=0)
+    df.fillna('',inplace=True)
+    df.columns=['']
+    df.index.name=''
+    return df
 
 
 def _stack_variable(path,ext):

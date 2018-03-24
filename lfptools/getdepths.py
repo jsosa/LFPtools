@@ -2,7 +2,6 @@
 
 # inst: university of bristol
 # auth: jeison sosa
-# date: 29/apr/2017
 # mail: sosa.jeison@gmail.com / j.sosa@bristol.ac.uk
 
 import os
@@ -20,6 +19,21 @@ from scipy.optimize import fsolve
 
 def getdepths(argv):
 
+    """
+    Get depths to river pixels in river network. Three methods availables:
+
+    1) depth_raster
+        Get depths from a raster of depths
+
+    2) depth_geometry
+        Get depths by using hydraulic geometry equation
+        depth = r * width ^ p
+
+    3) depth_mannings
+        Get depths by using simplified mannings equation
+        ((bankfull_flow*manning_coef)/(slope**0.5*width))**(3/5.)
+    """
+
     opts, args = getopt.getopt(argv,"i:")
     for o, a in opts:
         if o == "-i": inifile  = a
@@ -32,7 +46,7 @@ def getdepths(argv):
     method = str(config.get('getdepths','method'))
     output = str(config.get('getdepths','output'))
 
-    print("    runnning get_depths.py...")
+    print("    runnning getdepths.py...")
 
     try:
         fdepth = str(config.get('getdepths','fdepth'))
@@ -66,8 +80,7 @@ def getdepths(argv):
     elif method == "depth_manning":
         depth_manning(w,n,qbnkf,slpf,wdtf)
     else:
-        print("ESPECIFY A METHOD")
-        sys.exit()
+        sys.exit("ERROR method not recognised")
 
     # write final value in a shapefile
     w.save("%s.shp" % fname)
@@ -86,10 +99,12 @@ def getdepths(argv):
     mygeo  = gdalutils.get_geo(netf)
     subprocess.call(["gdal_rasterize","-a_nodata",str(nodata),"-of",fmt,"-tr",str(mygeo[6]),str(mygeo[7]),"-a","depth","-a_srs",proj,"-te",str(mygeo[0]),str(mygeo[1]),str(mygeo[2]),str(mygeo[3]),name1,name2])
 
+
 def depth_raster(w,fdepth,path,catchment,thresh):
 
     """
-    NOT WORKING PATH AND CATCHMENT VARIABLES WERE MODIFIED
+    NOT WORKING
+    From a raster of depths this subroutine finds nearest depth to every river pixel in grid
     """
 
     # Uses the river network file in each catchment (Ex. 276_net30.tif)
@@ -116,7 +131,12 @@ def depth_raster(w,fdepth,path,catchment,thresh):
         w.record(x[i],y[i],mydepth)
     return w
  
+
 def depth_geometry(w,r,p,wdtf):
+
+    """
+    Uses hydraulic geoemtry equation to estimate requires width, r and p coeffs.
+    """
 
     width = np.array(shapefile.Reader(wdtf).records(),dtype='float64')
     x     = width[:,0]
@@ -133,7 +153,13 @@ def depth_geometry(w,r,p,wdtf):
     
     return w
 
+
 def depth_manning(f,n,qbnkf,slpf,wdtf):
+
+    """
+    Uses manning's equation to estimate depth requires bankfull flow,
+    slope, width and manning coefficient
+    """
 
     # load width shapefile
     width = np.array(shapefile.Reader(wdtf).records(),dtype='float64')
@@ -175,13 +201,12 @@ def depth_manning(f,n,qbnkf,slpf,wdtf):
 
         # depth by using a simplified version of the mannings equation
         mydepth = manning_depth_simplified(data)
-        # mydepth = 20 # DEBUG-DEBUG-DEBUG
         
         f.point(xw[i],yw[i])
         f.record(xw[i],yw[i],mydepth)
-        # f.record(xw[i],yw[i],mydepth*10)
     
     return f
+
 
 def nearpixel(array,ddsx,ddsy,XA):
 
@@ -192,7 +217,6 @@ def nearpixel(array,ddsx,ddsy,XA):
     ddsx: 1-dim array with longitudes of array
     ddsy: 1-dim array with latitudes of array
     XA: point
-
     """
     _ds    = np.where(array>0)
 
@@ -206,9 +230,11 @@ def nearpixel(array,ddsx,ddsy,XA):
     
     return res
 
+
 def manning_depth(d,*data):
     q,w,s,n = data
     return q*n/s**0.5-w*d*(w*d/(2*d+w))**(2/3)
+
 
 def manning_depth_simplified(data):
     q = data[0]
@@ -217,12 +243,14 @@ def manning_depth_simplified(data):
     n = data[3]
     return ((q*n)/(s**0.5*w))**(3/5.)
 
+
 def near(ddsx,ddsy,XA):
 
     XB  = np.vstack((ddsy,ddsx)).T
     dis = cdist(XA, XB, metric='euclidean').argmin()
 
     return dis
+
 
 if __name__ == '__main__':
     getdepths(sys.argv[1:])
