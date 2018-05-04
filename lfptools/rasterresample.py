@@ -111,9 +111,22 @@ def calc_resampling_mp(pos,queue,fname1,hrnodata,x,y,thresh,outlier,method):
         ddem        = np.ma.masked_where(dem==hrnodata,dem)
         shape       = dem.shape
         
-        if method == "mean":
-            if outlier == "yes": ddem = check_outlier(dem,ddem,hrnodata,3.5)
-        elev[i] = np.mean([ddem.mean(),ddem.min()])
+        # Check for outliers
+        if outlier == "yes":
+            ddem = check_outlier(dem,ddem,hrnodata,3.5)
+
+        # Method to applied at every kernel
+        if method == "meanmin":
+            elev[i] = np.mean([ddem.mean(),ddem.min()])
+
+        elif method == "mean":
+            elev[i] = ddem.mean()
+
+        elif method == "min":
+            elev[i] = ddem.min()
+
+        else:
+            sys.exit('ERROR method not specified')
 
     queue.put((pos,elev))
 

@@ -2,7 +2,6 @@
 
 # inst: university of bristol
 # auth: jeison sosa
-# date: 12/may/2017
 # mail: j.sosa@bristol.ac.uk / sosa.jeison@gmail.com
 
 import sys
@@ -12,12 +11,10 @@ import configparser
 import numpy as np
 from lfptools import shapefile
 import gdalutils
+import gdalutils.extras.haversine as haversine
 from osgeo import osr
 from scipy.ndimage import distance_transform_edt
 from scipy.spatial.distance import cdist
-
-import pdb
-# pdb.set_trace()
 
 def getbankelevs(argv):
 
@@ -80,12 +77,28 @@ def getbankelevs(argv):
             pass
 
         if method == 'near':
-            elev = nearivpixel(ddem,rriv,dem_geo[8],dem_geo[9],np.array([[y[i],x[i]]]))
-        elif method == 'mean':
+            nodata = dem_geo[11]
+            dfdem  = gdalutils.array_to_pandas(dem,dem_geo,nodata,'gt')
+            arr    = haversine.haversine_array(np.array(dfdem['y'].values,dtype='float32'), np.float32(dfdem['x'].values,dtype='float32'), np.float32(y[i]), np.float32(x[i]))
+            dfdem['dis'] = np.array(arr)
+            dfdem.sort_values(by='dis', inplace=True)
+            elev   = dfdem.iloc[0,2]
+
+        elif method == 'meanmin':
             if outlier == "yes": ddem = check_outlier(dem,ddem,hrnodata,3.5)
             elev = np.mean([ddem.mean(),ddem.min()])
+        
+        elif method == 'mean':
+            if outlier == "yes": ddem = check_outlier(dem,ddem,hrnodata,3.5)
+            elev = ddem.mean()
+        
+        elif method == 'min':
+            if outlier == "yes": ddem = check_outlier(dem,ddem,hrnodata,3.5)
+            elev = ddem.min()
+        
         elif method == 'avgrivpixel':
             elev = avgrivpixel(ddem,rriv)
+        
         elif method == 'avgedgpixel':
             elev = avgedgpixel(ddem,rriv)
 
