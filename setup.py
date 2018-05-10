@@ -12,6 +12,7 @@ binaries=['bin/lfp-fixelevs',
     'bin/lfp-prepdata',
     'bin/lfp-rasterresample',
     'bin/lfp-split',
+    'bin/lfp-outlier',
 ]
 
 ext_modules=[

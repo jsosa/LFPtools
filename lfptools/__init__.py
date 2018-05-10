@@ -6,6 +6,7 @@ from . import getwidths
 from . import rasterresample
 from . import getdepths
 from . import split
+from . import outlier
 from . import shapefile
 from . import misc_utils
 from . import prepdata_utils
