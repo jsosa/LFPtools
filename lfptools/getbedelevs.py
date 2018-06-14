@@ -12,6 +12,7 @@ import subprocess
 import configparser
 import numpy as np
 from osgeo import osr
+from lfptools.outlier import outlier
 from lfptools import shapefile
 import gdalutils
 from scipy.spatial.distance import cdist
@@ -26,6 +27,7 @@ def getbedelevs(argv):
     config = configparser.SafeConfigParser()
     config.read(inifile)
     
+    recf   = str(config.get('getbedelevs','recf'))
     bnkf   = str(config.get('getbedelevs','bnkf'))
     dptf   = str(config.get('getbedelevs','dptf'))
     netf   = str(config.get('getbedelevs','netf'))
@@ -73,6 +75,12 @@ def getbedelevs(argv):
     name2  = fname+".tif"
     mygeo  = gdalutils.get_geo(netf)
     subprocess.call(["gdal_rasterize","-a_nodata",str(nodata),"-of",fmt,"-tr",str(mygeo[6]),str(mygeo[7]),"-a","bedelev","-a_srs",proj,"-te",str(mygeo[0]),str(mygeo[1]),str(mygeo[2]),str(mygeo[3]),name1,name2])
+
+    # # Fix dataset
+    # shpf = name1
+    # labl = 'bedelev'
+    # outf = fname
+    # outlier(recf,proj,netf,shpf,labl,outf,'yama')
 
 def near(ddsx,ddsy,XA):
 

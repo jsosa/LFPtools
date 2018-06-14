@@ -6,11 +6,14 @@
 
 import os
 import shutil
+from glob import glob
 import gzip
+import xarray as xr
 import numpy as np
 import pandas as pd
 import gdalutils
 from osgeo import osr
+import gdalutils.extras.haversine as haversine
 
 
 # TODO:
@@ -117,13 +120,17 @@ def read_par(filename):
     return df
 
 
-def _stack_variable(path,ext):
+def _stack_variable(path,ext,compress=''):
+
+    files = glob(path+'*.'+ext+compress)
+    lengt = len(files)
     mylis = []
-    for file in os.listdir(path):
-        if file.endswith(ext):
-            fname = os.path.join(path,file)
-            mydat = get_ascii_data(fname)
-            mylis.append(mydat)
+    for i in range(lengt):
+        num   = '%04d' % i 
+        fname = path + 'res' + '-' + num + '.' + ext+compress
+        mydat = get_ascii_dat(fname)
+        mylis.append(mydat)
+
     myvar = np.dstack(mylis)
 
     # Replace zeros by np.nan
@@ -135,39 +142,25 @@ def _stack_variable(path,ext):
     return myvar,mygeo
 
 
-def results_to_nc(path,mass,date1='1990-01-01'):
+def results_to_nc(path,mass,var,compress,outf,date1='1990-01-01'):
 
-    import xarray as xr
+    if compress == True:
+        compress = '.gz'
+    else:
+        compress = ''
 
     # Mass file is used only to read output dates
     t = pd.read_csv(mass, delim_whitespace=True, usecols=[0,0])
     t = _secs_to_time(t,date1)
 
-    wd_dat,wd_geo = _stack_variable(path,'.wd.gz')
-    wdfp_dat,wdfp_geo = _stack_variable(path,'.wdfp.gz')
-    elev_dat,elev_geo = _stack_variable(path,'.elev.gz')
-    Fwidth_dat,Fwidth_geo = _stack_variable(path,'.Fwidth.gz')
-    Qx_dat,Qx_geo = _stack_variable(path,'.Qx.gz')
-    Qy_dat,Qy_geo = _stack_variable(path,'.Qy.gz')
-    Qcx_dat,Qcx_geo = _stack_variable(path,'.Qcx.gz')
-    Qcy_dat,Qcy_geo = _stack_variable(path,'.Qcy.gz')
+    dat,geo = _stack_variable(path,var,compress)
 
-    # Creating xarray DataArray to be exported in NetCDF
-    x     = wd_geo[8]
-    y     = wd_geo[9]
-    time  = t.index.values
+    x    = geo[8]
+    y    = geo[9]
+    time = t.index.values
     
     foo                            = xr.Dataset()
-    foo['wd']                      = (('y','x','time'), wd_dat)
-    foo['wdfp']                    = (('y','x','time'), wdfp_dat)
-    foo['elev']                    = (('y','x','time'), elev_dat)
-    foo['Fwidth']                  = (('y','x','time'), Fwidth_dat)
-    # foo['Qx']                      = (('y','x','time'), Qx_dat)
-    # foo['Qy']                      = (('y','x','time'), Qy_dat)
-    # foo['Qcx']                     = (('y','x','time'), Qcx_dat)
-    # foo['Qcy']                     = (('y','x','time'), Qcy_dat)
-    # foo['Q']                       = xr.ufuncs.sqrt(foo.Qx**2 + foo.Qy**2)
-    # foo['Qc']                      = xr.ufuncs.sqrt(foo.Qy**2 + foo.Qcy**2)
+    foo[var]                       = (('y','x','time'), dat)
     foo.coords['x']                = (('x'), x)
     foo.coords['y']                = (('y'), y)
     foo.coords['time']             = time
@@ -175,7 +168,7 @@ def results_to_nc(path,mass,date1='1990-01-01'):
     foo.attrs['creator_institute'] = 'University of Bristol'
     foo.attrs['creator_email']     = 'j.sosa@bristol.ac.uk'
 
-    foo.to_netcdf(path+"res.nc",encoding={'wd': {'zlib': True}, 'wdfp': {'zlib': True}})
+    foo.to_netcdf(outf,encoding={var: {'zlib': True}})
  
 
 def _uncompress_gz(filename):
@@ -231,10 +224,10 @@ def get_ascii_dat(filename):
 def to_tif(filename,output,proj4=None,fmt="Float64"):
 
     """
-    COnverts ASCII file into GTiff
+    Converts ASCII file into GTiff
     """
 
     myarray = gdalutils.get_data(filename)
-    mygeo = gdalutils.get_geo(filename,proj4=proj4)
+    mygeo   = gdalutils.get_geo(filename,proj4=proj4)
 
     return gdalutils.write_raster(myarray,output,mygeo,fmt,mygeo[11])

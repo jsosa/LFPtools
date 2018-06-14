@@ -103,22 +103,26 @@ def split(argv):
             basinsplit(nc,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,aretif,otltif,tretxt,cootxt)
     else:
         # Process a single catchment
-        basinsplit(np.int(basnum),outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,aretif,otltif,tretxt,cootxt)
-
+        b = basnum.split(',')
+        for nc in np.arange(int(b[0]),int(b[1])):
+            basinsplit(nc,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,aretif,otltif,tretxt,cootxt)
 
 def basinsplit(ncatch,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,aretif,otltif,tretxt,cootxt):
 
     # Get extend for every catchment and area
     catarr  = gdalutils.get_data(cattif)
+
+    try:
+        dat = catarr==ncatch
+    except:
+        sys.exit('ERROR invalid basin number')
+
     catgeo  = gdalutils.get_geo(cattif)
     area    = gdalutils.get_data(aretif)
     outlet  = gdalutils.get_data(otltif)
-    direc   = gdalutils.get_data(dirtif)
-    dat     = catarr==ncatch
+    direc   = gdalutils.get_data(dirtif)   
     row,col = np.where(dat)
     _sum    = np.sum(dat*area)
-    _dir    = np.sum(dat*outlet*direc)
-    _dirlet = getdirletter(_dir)
 
     if _sum >= 100: # be sure basin is larger than 100 Km2
 
@@ -157,15 +161,15 @@ def basinsplit(ncatch,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,aretif,ot
             # Clipping tree file
             lfp_tree = pd.DataFrame()
             for i in tree.index:
-                sta = tree.loc[i,'start_pnt']
-                end = tree.loc[i,'end_pnt']
+                sta  = tree.loc[i,'start_pnt']
+                end  = tree.loc[i,'end_pnt']
                 lon1 = coor.loc[sta,'lon']
                 lat1 = coor.loc[sta,'lat']
                 lon2 = coor.loc[end,'lon']
                 lat2 = coor.loc[end,'lat']
                 dis1,ind1 = misc_utils.near_euc(lfp_coor['lon'].values,lfp_coor['lat'].values,(lon1,lat1))
                 dis2,ind2 = misc_utils.near_euc(lfp_coor['lon'].values,lfp_coor['lat'].values,(lon2,lat2))
-                if (dis1 <= 0.01) & (dis2 <= 0.01):
+                if (dis1 <= 0.012) & (dis2 <= 0.012): # default value 0.01 wasn't able to find link number 3504, this value was increased to 0.012 to find missing link
                     lfp_tree = lfp_tree.append(tree.loc[i,:])
             lfp_tree = lfp_tree[['link_no','start_pnt','end_pnt','frst_ds','frst_us','scnd_us','strahler','mon_pnt','shreve']]
             lfp_tree.index.name = 'index'
@@ -195,7 +199,9 @@ def basinsplit(ncatch,outdir,cattif,demtif,acctif,nettif,wthtif,dirtif,aretif,ot
             ymax = rec['lat'].max()
 
             # Get fixed extent
-            xmin,ymin,xmax,ymax = get_extent_outlet(_dirlet,0.1,xmin,ymin,xmax,ymax)
+            # _dir    = getdir(rec,dirtif)
+            # _dirlet = getdirletter(_dir)
+            # xmin,ymin,xmax,ymax = get_extent_outlet(_dirlet,0.1,xmin,ymin,xmax,ymax)
 
             # Clipping rasters
             demarrcli,demgeocli = gdalutils.clip_raster(demtif,xmin,ymin,xmax,ymax)
@@ -355,6 +361,18 @@ def get_extent_outlet(dirlet,thresh,_xmin,_ymin,_xmax,_ymax):
         ymax = _ymax + thresh   
 
     return (xmin,ymin,xmax,ymax)
+
+def getdir(rec,dirtif):
+    
+    dat   = gdalutils.get_data(dirtif)
+    geo   = gdalutils.get_geo(dirtif)
+    dirdf = gdalutils.array_to_pandas(dat,geo,0,'gt')
+    recdf = gdalutils.assign_val(df2=rec.reset_index(),df2_x='lon',df2_y='lat',df1=dirdf,df1_x='x',df1_y='y',label='z',copy=True)
+
+    # Direction of outlet is given by the maximum repetitions of directions in the last 10 points
+    _dir  = recdf.sort_values(by='distance').iloc[0:10].groupby('z')['z'].count().idxmax()
+
+    return _dir
 
 if __name__ == '__main__':
     split(sys.argv[1:])

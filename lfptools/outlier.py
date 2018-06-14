@@ -10,6 +10,7 @@ import subprocess
 import configparser
 import numpy as np
 import pandas as pd
+from lfptools.fixelevs import bank4flood
 import gdalutils
 import gdalutils.extras.shapefile as shapefile
 import gdalutils.extras.haversine as haversine
@@ -49,7 +50,7 @@ def outlier(recf,proj,netf,shpf,labl,outf,method):
     rec = pd.read_csv(recf)
 
     # Loading shapefile
-    df  = gdalutils.shp2pandas(shpf)
+    df  = gdalutils.shp_to_pandas(shpf)
 
     # Assign values in rec file
     rec = assign_val(rec,df,labl)
@@ -59,8 +60,37 @@ def outlier(recf,proj,netf,shpf,labl,outf,method):
         rec = remove_outliers_qua(rec,'link',labl)
     elif method == 'mad':
         rec = remove_outliers_mad(rec,'link',labl)
+    elif method == 'yama':
+        rec = remove_outliers_yama(rec,'reach',labl)
     else:
         sys.exit('ERROR Method not recognized')
+
+    # Saving shapefile and tif files
+    save_shp_tif(netf,outf,proj,rec,labl)
+
+def manualfix(recf,proj,netf,shpf,labl,outf,x,y,val):
+
+    # Loading xxx_rec file
+    rec = pd.read_csv(recf)
+
+    # Loading shapefile
+    df  = gdalutils.shp_to_pandas(shpf)
+
+    # Assign values in rec file
+    rec = assign_val(rec,df,labl)
+
+    for i in range(len(x)):
+        dis = haversine.haversine_array(np.array(rec['lat'],dtype='float32'),
+                                        np.array(rec['lon'],dtype='float32'),
+                                        np.float32(y[i]),
+                                        np.float32(x[i]))
+        idx = np.argmin(dis)
+        rec.loc[idx,labl] = val[i]
+
+    # Saving shapefile and tif files
+    save_shp_tif(netf,outf,proj,rec,labl)
+
+def save_shp_tif(netf,outf,proj,rec,labl):
 
     # Save rec in shapefile
     w = shapefile.Writer(shapefile.POINT)
@@ -115,6 +145,8 @@ def remove_outliers_qua(df,groby,label):
     df              = df.copy()
     df.loc[:,label] = df.groupby(groby)[label].transform(lambda x: x.where((x>x.quantile(0.01)) & (x<x.quantile(0.99)),np.nan))
     df.loc[:,label] = df.groupby(groby)[label].transform(pd.DataFrame.interpolate)
+    df.loc[:,label] = df.groupby(groby)[label].fillna(method='ffill')
+    df.loc[:,label] = df.groupby(groby)[label].fillna(method='bfill')
     # df.interpolate(inplace=True)
 
     return df
@@ -124,6 +156,15 @@ def remove_outliers_mad(df,groby,label):
     df              = df.copy()
     mask            = df.groupby(groby)[label].transform(is_outlier,thresh=3.5)
     df[label]       = df[label].where(~mask, np.nan)
+    df.loc[:,label] = df.groupby(groby)[label].fillna(method='ffill')
+    df.loc[:,label] = df.groupby(groby)[label].fillna(method='bfill')
+
+    return df
+
+def remove_outliers_yama(df,groby,label):
+
+    df              = df.copy()
+    df.loc[:,label] = df.groupby(groby)[label].transform(bank4flood)
     df.loc[:,label] = df.groupby(groby)[label].fillna(method='ffill')
     df.loc[:,label] = df.groupby(groby)[label].fillna(method='bfill')
 

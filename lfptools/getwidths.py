@@ -14,6 +14,7 @@ import pandas as pd
 import gdalutils
 from lfptools import shapefile
 from lfptools import misc_utils
+from lfptools.outlier import outlier
 from osgeo import osr
 
 
@@ -43,13 +44,12 @@ def getwidths(argv):
     # Reading XXX_rec.csv file
     rec = pd.read_csv(recf)
 
-    # Reading XXX_net.tif file
-    dat = gdalutils.get_data(fwidth)
-    geo = gdalutils.get_geo(fwidth)
-
-    iy,ix = np.where(dat>0)
-    xdat = geo[8][ix]
-    ydat = geo[9][iy]
+    # Reading width source file
+    dat   = gdalutils.get_data(fwidth)
+    geo   = gdalutils.get_geo(fwidth)
+    iy,ix = np.where(dat>30)
+    xdat  = geo[8][ix]
+    ydat  = geo[9][iy]
 
     # Get nearest width from datasource
     # Uses Euclidean distance to find nearest point in source
@@ -63,10 +63,22 @@ def getwidths(argv):
             width.append(np.nan)
     rec['width'] = width
 
-    # Filling NaN, backward and forward
-    # Grouping per LINK, then perform operation
-    rec.loc[:,'width'] = rec.groupby('link').width.fillna(method='ffill')
-    rec.loc[:,'width'] = rec.groupby('link').width.fillna(method='bfill')
+    # Group river network per link
+    # If there are more NaN than real values, all values in link are equal to 30
+    # Otherwise, interpolate real values to fill NaNs
+    def check_width(a):
+        b = a.copy()
+        c = b.isnull()
+        falses = c.sum()
+        trues = c.count() - falses
+        if trues >= falses:
+            return a.interpolate(limit_direction='both')
+        else:
+            b.loc[:] = 30
+            return b
+    rec.loc[:,'width'] = rec.groupby('link').width.apply(check_width)
+
+    # Saving width data in csv
     rec.to_csv(output+".csv")
 
    # Writing .shp resulting file
@@ -89,6 +101,12 @@ def getwidths(argv):
     name1  = output+".shp"
     name2  = output+".tif"
     subprocess.call(["gdal_rasterize","-a_nodata",str(nodata),"-of",fmt,"-tr",str(geo[6]),str(geo[7]),"-a","width","-a_srs",proj,"-te",str(geo[0]),str(geo[1]),str(geo[2]),str(geo[3]),name1,name2])
+
+    # # Fix dataset
+    # shpf = name1
+    # labl = 'width'
+    # outf = output
+    # outlier(recf,proj,netf,shpf,labl,outf,'qua')
 
 if __name__ == '__main__':
     getwidths(sys.argv[1:])

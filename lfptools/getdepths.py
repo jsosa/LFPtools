@@ -12,6 +12,7 @@ import getopt
 import numpy as np
 from lfptools import shapefile
 import gdalutils
+from lfptools.outlier import outlier
 from osgeo import osr
 from scipy.spatial.distance import cdist
 from scipy.optimize import fsolve
@@ -43,6 +44,7 @@ def getdepths(argv):
 
     proj   = str(config.get('getdepths','proj'))
     netf   = str(config.get('getdepths','netf'))
+    recf   = str(config.get('getdepths','recf'))
     method = str(config.get('getdepths','method'))
     output = str(config.get('getdepths','output'))
 
@@ -99,6 +101,11 @@ def getdepths(argv):
     mygeo  = gdalutils.get_geo(netf)
     subprocess.call(["gdal_rasterize","-a_nodata",str(nodata),"-of",fmt,"-tr",str(mygeo[6]),str(mygeo[7]),"-a","depth","-a_srs",proj,"-te",str(mygeo[0]),str(mygeo[1]),str(mygeo[2]),str(mygeo[3]),name1,name2])
 
+    # # Fix dataset
+    # shpf = name1
+    # labl = 'depth'
+    # outf = output
+    # outlier(recf,proj,netf,shpf,labl,outf,'mad')
 
 def depth_raster(w,fdepth,path,catchment,thresh):
 
