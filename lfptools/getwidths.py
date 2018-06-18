@@ -53,14 +53,21 @@ def getwidths(argv):
 
     # Get nearest width from datasource
     # Uses Euclidean distance to find nearest point in source
+    # `try` included since it may happen that the width database doesn't
+    # contains data in the basin if that is the case all values are assigned
+    # a 30 m width
     width = []
     for x,y in zip(rec['lon'],rec['lat']):
-        dis,ind = misc_utils.near_euc(xdat,ydat,(x,y))
-        if dis <= thresh:
-            val = dat[iy[ind],ix[ind]]
-            width.append(val)
-        else:
+        try:
+            dis,ind = misc_utils.near_euc(xdat,ydat,(x,y))
+            if dis <= thresh:
+                val = dat[iy[ind],ix[ind]]
+                width.append(val)
+            else:
+                width.append(np.nan)
+        except ValueError:
             width.append(np.nan)
+
     rec['width'] = width
 
     # Group river network per link
