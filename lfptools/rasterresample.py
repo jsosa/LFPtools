@@ -91,6 +91,9 @@ def rasterresample(argv):
     # Stack results horizontally
     elev = np.hstack(results).reshape(net.shape)
 
+    # Replace NaN by hrnodata
+    elev[np.isnan(elev)] = hrnodata
+
     # elev = calc_resampling(fname1,hrnodata,x,y,ix,iy,thresh,outlier,method)
     gdalutils.write_raster(elev,fname2,geo,"Float32",hrnodata) 
 
@@ -108,7 +111,7 @@ def calc_resampling_mp(pos,queue,fname1,hrnodata,x,y,thresh,outlier,method):
         ymax = y[i] + thresh
 
         dem,dem_geo = gdalutils.clip_raster(fname1,xmin,ymin,xmax,ymax)
-        ddem        = np.ma.masked_where(dem==hrnodata,dem)
+        ddem        = np.ma.masked_values(dem,hrnodata)
         shape       = dem.shape
         
         # Check for outliers
