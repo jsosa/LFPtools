@@ -50,8 +50,6 @@ def rasterresample(argv):
     outlier  = str(config.get('rasterresample','outlier'))
     hrnodata = np.float64(config.get('rasterresample','hrnodata'))
     thresh   = np.float64(config.get('rasterresample','thresh'))
-    resx     = np.float64(config.get('rasterresample','resx'))
-    resy     = -np.float64(config.get('rasterresample','resy')) # negative value to fit like in previous scripts
     nproc    = np.float64(config.get('rasterresample','nproc')) # number of cpus to use
 
     print ("    running rasterresample.py...")

@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 from lfptools import shapefile
 from lfptools import misc_utils
+import statsmodels.api as sm
 import gdalutils
 from osgeo import osr
 
@@ -81,9 +82,14 @@ def fixelevs(argv):
     for reach,df in recgrp:
         ids = df.index
         dem = df['bnk']
+        
         # calc bank elevation
         if method == 'yamazaki':
             adjusted_dem = bank4flood(dem)
+        elif method == 'lowless':
+            adjusted_dem = lowless(dem)
+        else:
+            sys.exit('Method not recognised')
         rec['bnk_adj'][ids] = adjusted_dem
 
     # Writing .shp resulting file
@@ -201,19 +207,17 @@ def bank4flood(dem):
 
     return adjusted_dem
 
-# def lowless(dem):
+def lowless(dem):
 
-"""
-LOWESS (Locally Weighted Scatterplot Smoothing)
-"""
+    """
+    LOWESS (Locally Weighted Scatterplot Smoothing)
+    """
 
-    # lowess = sm.nonparametric.lowess
-    # y = mysum_04[mysum_04['reach']==2].dembnk.values
-    # yama = bank4flood(y)
-    # x = np.arange(0,y.size)
-    # z = lowess(y, x)
-    # w = lowess(y, x, frac=1/3)
-    # pd.DataFrame({'sim02':mysum_02[mysum_02['reach']==2].dembnk.values,'sim04':y,'frac0p3':w[:,1],'yamazaki':yama}).vgplot()
+    lowess = sm.nonparametric.lowess
+    y = dem
+    x = np.arange(0,y.size)
+    w = lowess(y, x, frac=1/3)
+    return w[:,1]
 
 if __name__ == '__main__':
     fixelevs(sys.argv[1:])
