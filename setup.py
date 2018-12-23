@@ -3,22 +3,22 @@ from distutils.extension import Extension
 from Cython.Build import cythonize
 import numpy
 
-binaries=['bin/lfp-fixelevs',
-    'bin/lfp-getbankelevs',
-    'bin/lfp-getbedelevs',
-    'bin/lfp-getdepths',
-    'bin/lfp-getslopes',
-    'bin/lfp-getwidths',
-    'bin/lfp-prepdata',
-    'bin/lfp-rasterresample',
-    'bin/lfp-split',
-    'bin/lfp-outlier',
-]
+binaries = ['bin/lfp-fixelevs',
+            'bin/lfp-getbankelevs',
+            'bin/lfp-getbedelevs',
+            'bin/lfp-getdepths',
+            'bin/lfp-getslopes',
+            'bin/lfp-getwidths',
+            'bin/lfp-prepdata',
+            'bin/lfp-rasterresample',
+            'bin/lfp-split',
+            'bin/lfp-getinflows',
+            ]
 
-ext_modules=[
+ext_modules = [
     Extension("lfptools.prepdata_utils", ["lfptools/prepdata_utils.pyx"],
-        include_dirs=[numpy.get_include()],
-    )
+              include_dirs=[numpy.get_include()],
+              )
 ]
 
 setup(
@@ -33,4 +33,4 @@ setup(
     zip_safe=False,
     scripts=binaries,
     ext_modules=cythonize(ext_modules),
-    )
+)

@@ -2,7 +2,6 @@
 
 # inst: university of bristol
 # auth: jeison sosa
-# date: 12/may/2017
 # mail: j.sosa@bristol.ac.uk / sosa.jeison@gmail.com
 
 import os
@@ -16,7 +15,6 @@ from osgeo import osr
 
 
 def rasterresample(argv):
-
     """
     This function uses the output from streamnet function from
     TauDEM, specifically the "coord" and "tree" files to calculate
@@ -35,45 +33,49 @@ def rasterresample(argv):
         resy   = resolution in x, degrees
 
     """
-    
-    opts, args = getopt.getopt(argv,"i:")
-    for o, a in opts:
-        if o == "-i": inifile  = a
 
-    config   = configparser.SafeConfigParser()
+    opts, args = getopt.getopt(argv, "i:")
+    for o, a in opts:
+        if o == "-i":
+            inifile = a
+
+    config = configparser.SafeConfigParser()
     config.read(inifile)
 
-    method   = str(config.get('rasterresample','method'))
-    demf     = str(config.get('rasterresample','demf'))
-    netf     = str(config.get('rasterresample','netf'))
-    output   = str(config.get('rasterresample','output'))
-    outlier  = str(config.get('rasterresample','outlier'))
-    hrnodata = np.float64(config.get('rasterresample','hrnodata'))
-    thresh   = np.float64(config.get('rasterresample','thresh'))
-    nproc    = np.float64(config.get('rasterresample','nproc')) # number of cpus to use
+    method = str(config.get('rasterresample', 'method'))
+    demf = str(config.get('rasterresample', 'demf'))
+    netf = str(config.get('rasterresample', 'netf'))
+    output = str(config.get('rasterresample', 'output'))
+    outlier = str(config.get('rasterresample', 'outlier'))
+    hrnodata = np.float64(config.get('rasterresample', 'hrnodata'))
+    thresh = np.float64(config.get('rasterresample', 'thresh'))
+    nproc = np.float64(config.get('rasterresample', 'nproc')
+                       )  # number of cpus to use
 
-    print ("    running rasterresample.py...")
+    print("    running rasterresample.py...")
 
     fname1 = demf
     fname2 = output
 
     # coordinates for bank elevations are based in river network mask
-    net   = gdalutils.get_data(netf)
-    geo   = gdalutils.get_geo(netf)
-    iy,ix = np.where(net>-1) # consider all pixels in net30 including river network pixels
-    x     = geo[8][ix]
-    y     = geo[9][iy]
+    net = gdalutils.get_data(netf)
+    geo = gdalutils.get_geo(netf)
+    # consider all pixels in net30 including river network pixels
+    iy, ix = np.where(net > -1)
+    x = geo[8][ix]
+    y = geo[9][iy]
 
     # Split x and y in nproc parts
-    split_x = np.array_split(x,nproc)
-    split_y = np.array_split(y,nproc)
+    split_x = np.array_split(x, nproc)
+    split_y = np.array_split(y, nproc)
 
     # Define a queue
     queue = mp.Queue()
 
     # Setup a list of processes that we want to run
     processes = []
-    processes = [mp.Process(target=calc_resampling_mp, args=(i,queue,fname1,hrnodata,split_x[i],split_y[i],thresh,outlier,method)) for i in range(len(split_x))]
+    processes = [mp.Process(target=calc_resampling_mp, args=(
+        i, queue, fname1, hrnodata, split_x[i], split_y[i], thresh, outlier, method)) for i in range(len(split_x))]
 
     # Run processes
     for p in processes:
@@ -81,7 +83,7 @@ def rasterresample(argv):
 
     # Get process results from the queue
     results = [queue.get() for p in processes]
-    
+
     # Retrieve results in a particular order
     results.sort()
     results = [r[1] for r in results]
@@ -93,9 +95,10 @@ def rasterresample(argv):
     elev[np.isnan(elev)] = hrnodata
 
     # elev = calc_resampling(fname1,hrnodata,x,y,ix,iy,thresh,outlier,method)
-    gdalutils.write_raster(elev,fname2,geo,"Float32",hrnodata) 
+    gdalutils.write_raster(elev, fname2, geo, "Float32", hrnodata)
 
-def calc_resampling_mp(pos,queue,fname1,hrnodata,x,y,thresh,outlier,method):
+
+def calc_resampling_mp(pos, queue, fname1, hrnodata, x, y, thresh, outlier, method):
 
     elev = np.ones([len(x)])*hrnodata
 
@@ -108,17 +111,17 @@ def calc_resampling_mp(pos,queue,fname1,hrnodata,x,y,thresh,outlier,method):
         xmax = x[i] + thresh
         ymax = y[i] + thresh
 
-        dem,dem_geo = gdalutils.clip_raster(fname1,xmin,ymin,xmax,ymax)
-        ddem        = np.ma.masked_values(dem,hrnodata)
-        shape       = dem.shape
-        
+        dem, dem_geo = gdalutils.clip_raster(fname1, xmin, ymin, xmax, ymax)
+        ddem = np.ma.masked_values(dem, hrnodata)
+        shape = dem.shape
+
         # Check for outliers
         if outlier == "yes":
-            ddem = check_outlier(dem,ddem,hrnodata,3.5)
+            ddem = check_outlier(dem, ddem, hrnodata, 3.5)
 
         # Method to applied at every kernel
         if method == "meanmin":
-            elev[i] = np.mean([ddem.mean(),ddem.min()])
+            elev[i] = np.mean([ddem.mean(), ddem.min()])
 
         elif method == "mean":
             elev[i] = ddem.mean()
@@ -129,14 +132,15 @@ def calc_resampling_mp(pos,queue,fname1,hrnodata,x,y,thresh,outlier,method):
         else:
             sys.exit('ERROR method not specified')
 
-    queue.put((pos,elev))
+    queue.put((pos, elev))
 
-def calc_resampling(fname1,hrnodata,x,y,ix,iy,thresh,outlier,method):
 
-    elev = np.ones([len(np.unique(y)),len(np.unique(x))])*hrnodata
+def calc_resampling(fname1, hrnodata, x, y, ix, iy, thresh, outlier, method):
+
+    elev = np.ones([len(np.unique(y)), len(np.unique(x))])*hrnodata
 
     for i in range(len(x)):
-        
+
         # print("rasterresample.py - " + str(len(x)-i))
 
         xmin = x[i] - thresh
@@ -144,27 +148,28 @@ def calc_resampling(fname1,hrnodata,x,y,ix,iy,thresh,outlier,method):
         xmax = x[i] + thresh
         ymax = y[i] + thresh
 
-        dem,dem_geo = clip_raster(fname1,xmin,ymin,xmax,ymax)
-        ddem        = np.ma.masked_where(dem==hrnodata,dem)
-        shape       = dem.shape
+        dem, dem_geo = gdalutils.clip_raster(fname1, xmin, ymin, xmax, ymax)
+        ddem = np.ma.masked_where(dem == hrnodata, dem)
+        shape = dem.shape
 
         if outlier == "yes":
-                ddem = check_outlier(dem,ddem,hrnodata,3.5)
-        elev[iy[i],ix[i]] = np.mean([ddem.mean(),ddem.min()])
+            ddem = check_outlier(dem, ddem, hrnodata, 3.5)
+        elev[iy[i], ix[i]] = np.mean([ddem.mean(), ddem.min()])
 
     return elev
 
-def check_outlier(dem,ddem,hrnodata,thresh):
+
+def check_outlier(dem, ddem, hrnodata, thresh):
 
     shape = dem.shape
-    chk = is_outlier(ddem.reshape(-1,1),thresh)
-    arr = np.where(chk==True)
+    chk = is_outlier(ddem.reshape(-1, 1), thresh)
+    arr = np.where(chk == True)
     if arr[0].size > 0:
-        dem1 = dem.reshape(-1,1)
+        dem1 = dem.reshape(-1, 1)
         dem1_tmp = np.copy(dem1)
         dem1[arr[0]] = hrnodata
         dem2 = dem1.reshape(shape)
-        ddem = np.ma.masked_where(dem2==hrnodata,dem2)
+        ddem = np.ma.masked_where(dem2 == hrnodata, dem2)
 
         # # DEBUG DEBUG DEBUG
         # xaxis = np.arange(0,len(dem1)).reshape(-1,1)
@@ -174,8 +179,8 @@ def check_outlier(dem,ddem,hrnodata,thresh):
 
     return ddem
 
-def is_outlier(points, thresh=3.5):
 
+def is_outlier(points, thresh=3.5):
     """
     Returns a boolean array with True if points are outliers and False 
     otherwise.
@@ -199,7 +204,7 @@ def is_outlier(points, thresh=3.5):
     """
 
     if len(points.shape) == 1:
-        points = points[:,None]
+        points = points[:, None]
     median = np.median(points, axis=0)
     diff = np.sum((points - median)**2, axis=-1)
     diff = np.sqrt(diff)
@@ -208,6 +213,7 @@ def is_outlier(points, thresh=3.5):
     modified_z_score = 0.6745 * diff / med_abs_deviation
 
     return modified_z_score > thresh
+
 
 if __name__ == '__main__':
     rasterresample(sys.argv[1:])

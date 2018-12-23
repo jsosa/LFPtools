@@ -2,8 +2,7 @@
 
 # inst: university of bristol
 # auth: jeison sosa
-# date: 21/apr/2017
-# mail: sosa.jeison@gmail.com / j.sosa@bristol.ac.uk
+# mail: j.sosa@bristol.ac.uk / sosa.jeison@gmail.com
 
 import os
 import sys
@@ -18,8 +17,8 @@ import statsmodels.api as sm
 import gdalutils
 from osgeo import osr
 
-def fixelevs(argv):
 
+def fixelevs(argv):
     """
     This function uses the output from streamnet function from
     TauDEM, specifically the "coord" and "tree" files to adjust
@@ -34,19 +33,20 @@ def fixelevs(argv):
 
     """
 
-    opts, args = getopt.getopt(argv,"i:")
+    opts, args = getopt.getopt(argv, "i:")
     for o, a in opts:
-        if o == "-i": inifile = a
+        if o == "-i":
+            inifile = a
 
     config = configparser.SafeConfigParser()
     config.read(inifile)
 
-    source = str(config.get('fixelevs','source'))
-    output = str(config.get('fixelevs','output'))
-    netf   = str(config.get('fixelevs','netf'))
-    recf = str(config.get('fixelevs','recf'))
-    proj   = str(config.get('fixelevs','proj'))
-    method = str(config.get('fixelevs','method'))
+    source = str(config.get('fixelevs', 'source'))
+    output = str(config.get('fixelevs', 'output'))
+    netf = str(config.get('fixelevs', 'netf'))
+    recf = str(config.get('fixelevs', 'recf'))
+    proj = str(config.get('fixelevs', 'proj'))
+    method = str(config.get('fixelevs', 'method'))
 
     print("    running fixelevs.py...")
 
@@ -57,7 +57,7 @@ def fixelevs(argv):
     rec = pd.read_csv(recf)
 
     # Database to fix
-    elev = np.array(shapefile.Reader(source).records(),dtype='float64')
+    elev = np.array(shapefile.Reader(source).records(), dtype='float64')
 
     # Initiate output shapefile
     w = shapefile.Writer(shapefile.POINT)
@@ -69,20 +69,20 @@ def fixelevs(argv):
     # Values are stored in rec['bnk']
     bnk = []
     for i in rec.index:
-        dis,ind = misc_utils.near_euc(elev[:,0],elev[:,1],(rec['lon'][i],
-                                      rec['lat'][i]))
-        bnk.append(elev[ind,2])
+        dis, ind = misc_utils.near_euc(elev[:, 0], elev[:, 1], (rec['lon'][i],
+                                                                rec['lat'][i]))
+        bnk.append(elev[ind, 2])
     rec['bnk'] = bnk
-    
-    # Adjusting bank values, resulting values 
+
+    # Adjusting bank values, resulting values
     # are stored in rec['bnk_adj']
     # coordinates are grouped by REACH number
     rec['bnk_adj'] = 0
     recgrp = rec.groupby('reach')
-    for reach,df in recgrp:
+    for reach, df in recgrp:
         ids = df.index
         dem = df['bnk']
-        
+
         # calc bank elevation
         if method == 'yamazaki':
             adjusted_dem = bank4flood(dem)
@@ -94,8 +94,8 @@ def fixelevs(argv):
 
     # Writing .shp resulting file
     for i in rec.index:
-        w.point(rec['lon'][i],rec['lat'][i])
-        w.record(rec['lon'][i],rec['lat'][i],rec['bnk_adj'][i])
+        w.point(rec['lon'][i], rec['lat'][i])
+        w.record(rec['lon'][i], rec['lat'][i], rec['bnk_adj'][i])
     w.save("%s.shp" % output)
 
     # write .prj file
@@ -104,18 +104,16 @@ def fixelevs(argv):
     srs.ImportFromProj4(proj)
     prj.write(srs.ExportToWkt())
     prj.close()
-    
+
     nodata = -9999
-    fmt    = "GTiff"
-    name1  = output+".shp"
-    name2  = output+".tif"
-    subprocess.call(["gdal_rasterize","-a_nodata",str(nodata),"-of",fmt,"-tr",
-                     str(geo[6]),str(geo[7]), "-a","elevadj","-a_srs",proj,"-te"
-                     ,str(geo[0]),str(geo[1]),str(geo[2]),str(geo[3])
-                     ,name1,name2])
+    fmt = "GTiff"
+    name1 = output+".shp"
+    name2 = output+".tif"
+    subprocess.call(["gdal_rasterize", "-a_nodata", str(nodata), "-of", fmt, "-tr",
+                     str(geo[6]), str(geo[7]), "-a", "elevadj", "-a_srs", proj, "-te", str(geo[0]), str(geo[1]), str(geo[2]), str(geo[3]), name1, name2])
+
 
 def bank4flood(dem):
-
     """
     Script to adjust river topography following method described
     in Yamazaki et al. (2012, J. Hydrol)
@@ -128,61 +126,63 @@ def bank4flood(dem):
     # grouped=[(k, sum(1 for i in g)) for k,g in groupby(dem)]
     # ...
 
-    adjusted_dem=np.array(dem)
+    adjusted_dem = np.array(dem)
 
-    for I in range(dem.size-1): # -1 to avoid error at boundary
+    for I in range(dem.size-1):  # -1 to avoid error at boundary
 
         # bug on first and second elevation values
-        if adjusted_dem[1]>adjusted_dem[0]:
-            adjusted_dem[0]=adjusted_dem[1]
+        if adjusted_dem[1] > adjusted_dem[0]:
+            adjusted_dem[0] = adjusted_dem[1]
 
-        if adjusted_dem[I+1]>adjusted_dem[I]:
+        if adjusted_dem[I+1] > adjusted_dem[I]:
 
-            midind=I
-            middem=adjusted_dem[midind]
-            vecdem=adjusted_dem[midind:]
+            midind = I
+            middem = adjusted_dem[midind]
+            vecdem = adjusted_dem[midind:]
 
             # identify up pixel
-            ii=0
+            ii = 0
             # look downstream from pixel i and stop when pixel i+1 < midindex
-            while vecdem[ii+1]>middem:
-                ii=ii+1
+            while vecdem[ii+1] > middem:
+                ii = ii+1
 
                 # avoid problems at boundary downstream
-                if ii==vecdem.size-1: break 
+                if ii == vecdem.size-1:
+                    break
 
-            lastind=midind+ii+1
+            lastind = midind+ii+1
 
-            zforw=adjusted_dem[midind:lastind]
-            zsort=np.sort(zforw)
-            
-            zind=[] # indexes
-            zmod=[] # adjusted elevation
-            lmod=[] # cost function
+            zforw = adjusted_dem[midind:lastind]
+            zsort = np.sort(zforw)
+
+            zind = []  # indexes
+            zmod = []  # adjusted elevation
+            lmod = []  # cost function
 
             for J in range(zsort.size):
 
                 # identify backward pixel
-                jj=1
+                jj = 1
 
                 # look backward from midindex and stop when pixel i-1>mid-index
-                while adjusted_dem[midind-jj]<=zsort[J]: 
-                    jj=jj+1
-                    if jj>midind: break # avoid problems at boundary upstream
+                while adjusted_dem[midind-jj] <= zsort[J]:
+                    jj = jj+1
+                    if jj > midind:
+                        break  # avoid problems at boundary upstream
 
-                backind=midind-jj+1
+                backind = midind-jj+1
 
                 # extract DEM following backwardindex:forwardindex
-                z=adjusted_dem[backind:lastind] 
+                z = adjusted_dem[backind:lastind]
 
-                zind.append(range(backind,lastind))
+                zind.append(range(backind, lastind))
                 # calc adjusted dem for every case
-                zmod.append(np.tile(zsort[J],(1,z.size)))
+                zmod.append(np.tile(zsort[J], (1, z.size)))
                 # calc cost function for every case
                 lmod.append(np.sum(np.abs(z-zmod[J])))
-            
-            lmin=np.min(lmod)
-            imin=np.where(lmod==lmin)[0][0]
+
+            lmin = np.min(lmod)
+            imin = np.where(lmod == lmin)[0][0]
 
             # print("")
             # print("    problem)
@@ -193,7 +193,7 @@ def bank4flood(dem):
             # print("")
 
             # final adjusted dem with minimum cost
-            adjusted_dem[zind[imin]]=zmod[imin]
+            adjusted_dem[zind[imin]] = zmod[imin]
 
     # remove flat banks
     # adjusted_dem2 = avoid_flat_banks(adjusted_dem)
@@ -207,17 +207,18 @@ def bank4flood(dem):
 
     return adjusted_dem
 
-def lowless(dem):
 
+def lowless(dem):
     """
     LOWESS (Locally Weighted Scatterplot Smoothing)
     """
 
     lowess = sm.nonparametric.lowess
     y = dem
-    x = np.arange(0,y.size)
+    x = np.arange(0, y.size)
     w = lowess(y, x, frac=1/3)
-    return w[:,1]
+    return w[:, 1]
+
 
 if __name__ == '__main__':
     fixelevs(sys.argv[1:])

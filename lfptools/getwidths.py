@@ -2,8 +2,7 @@
 
 # inst: university of bristol
 # auth: jeison sosa
-# date: 29/apr/2017
-# mail: sosa.jeison@gmail.com / j.sosa@bristol.ac.uk
+# mail: j.sosa@bristol.ac.uk / sosa.jeison@gmail.com
 
 import sys
 import subprocess
@@ -20,19 +19,52 @@ from osgeo import osr
 
 def getwidths(argv):
 
-    opts, args = getopt.getopt(argv,"i:")
-    for o, a in opts:
-        if o == "-i": inifile  = a
+    myhelp = '''
+    
+            LFPtools v0.1
+
+            Name
+            ————
+            getwidths
+
+            Description
+            ———————————
+            Retrieve river widths from a data set
+
+            Usage
+            —————
+            >> lfp-getwidths -i config.txt
+
+            Content in config.txt
+            —————————————————————
+            [getwidths]
+            thresh = Searching window threshold in same units as input data set
+            output = Shapefile output file path
+            recf   = `Rec` file path
+            netf   = Target mask file path
+            proj   = Output projection in Proj4 format
+            fwidth = Source width file path
+            
+            '''
+
+    try:
+        opts, args = getopt.getopt(argv, "i:")
+        for o, a in opts:
+            if o == "-i":
+                inifile = a
+    except:
+        print(myhelp)
+        sys.exit(0)
 
     config = configparser.SafeConfigParser()
     config.read(inifile)
 
-    recf   = str(config.get('getwidths','recf'))
-    netf   = str(config.get('getwidths','netf'))
-    proj   = str(config.get('getwidths','proj'))
-    fwidth = str(config.get('getwidths','fwidth'))
-    output = str(config.get('getwidths','output'))
-    thresh = np.float64(config.get('getwidths','thresh'))
+    recf = str(config.get('getwidths', 'recf'))
+    netf = str(config.get('getwidths', 'netf'))
+    proj = str(config.get('getwidths', 'proj'))
+    fwidth = str(config.get('getwidths', 'fwidth'))
+    output = str(config.get('getwidths', 'output'))
+    thresh = np.float64(config.get('getwidths', 'thresh'))
 
     print("    running getwidths.py...")
 
@@ -45,11 +77,11 @@ def getwidths(argv):
     rec = pd.read_csv(recf)
 
     # Reading width source file
-    dat   = gdalutils.get_data(fwidth)
-    geo   = gdalutils.get_geo(fwidth)
-    iy,ix = np.where(dat>30)
-    xdat  = geo[8][ix]
-    ydat  = geo[9][iy]
+    dat = gdalutils.get_data(fwidth)
+    geo = gdalutils.get_geo(fwidth)
+    iy, ix = np.where(dat > 30)
+    xdat = geo[8][ix]
+    ydat = geo[9][iy]
 
     # Get nearest width from datasource
     # Uses Euclidean distance to find nearest point in source
@@ -57,11 +89,11 @@ def getwidths(argv):
     # contains data in the basin if that is the case all values are assigned
     # a 30 m width
     width = []
-    for x,y in zip(rec['lon'],rec['lat']):
+    for x, y in zip(rec['lon'], rec['lat']):
         try:
-            dis,ind = misc_utils.near_euc(xdat,ydat,(x,y))
+            dis, ind = misc_utils.near_euc(xdat, ydat, (x, y))
             if dis <= thresh:
-                val = dat[iy[ind],ix[ind]]
+                val = dat[iy[ind], ix[ind]]
                 width.append(val)
             else:
                 width.append(np.nan)
@@ -83,15 +115,15 @@ def getwidths(argv):
         else:
             b.loc[:] = 30
             return b
-    rec.loc[:,'width'] = rec.groupby('link').width.apply(check_width)
+    rec.loc[:, 'width'] = rec.groupby('link').width.apply(check_width)
 
     # Saving width data in csv
     rec.to_csv(output+".csv")
 
    # Writing .shp resulting file
-    for x,y,width in zip(rec['lon'],rec['lat'],rec['width']):
-        w.point(x,y)
-        w.record(x,y,width)
+    for x, y, width in zip(rec['lon'], rec['lat'], rec['width']):
+        w.point(x, y)
+        w.record(x, y, width)
     w.save("%s.shp" % output)
 
     # write .prj file
@@ -103,11 +135,12 @@ def getwidths(argv):
 
     geo = gdalutils.get_geo(netf)
 
-    fmt    = "GTiff"
+    fmt = "GTiff"
     nodata = -9999
-    name1  = output+".shp"
-    name2  = output+".tif"
-    subprocess.call(["gdal_rasterize","-a_nodata",str(nodata),"-of",fmt,"-tr",str(geo[6]),str(geo[7]),"-a","width","-a_srs",proj,"-te",str(geo[0]),str(geo[1]),str(geo[2]),str(geo[3]),name1,name2])
+    name1 = output+".shp"
+    name2 = output+".tif"
+    subprocess.call(["gdal_rasterize", "-a_nodata", str(nodata), "-of", fmt, "-tr", str(geo[6]), str(geo[7]),
+                     "-a", "width", "-a_srs", proj, "-te", str(geo[0]), str(geo[1]), str(geo[2]), str(geo[3]), name1, name2])
 
     # # Fix dataset
     # shpf = name1
@@ -115,5 +148,7 @@ def getwidths(argv):
     # outf = output
     # outlier(recf,proj,netf,shpf,labl,outf,'qua')
 
+
 if __name__ == '__main__':
     getwidths(sys.argv[1:])
+    # getwidths()

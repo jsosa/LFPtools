@@ -16,33 +16,35 @@ from osgeo import osr
 from scipy.ndimage import distance_transform_edt
 from scipy.spatial.distance import cdist
 
+
 def getbankelevs(argv):
 
-    opts, args = getopt.getopt(argv,"i:")
+    opts, args = getopt.getopt(argv, "i:")
     for o, a in opts:
-        if o == "-i": inifile  = a
+        if o == "-i":
+            inifile = a
 
     config = configparser.SafeConfigParser()
     config.read(inifile)
 
-    output = str(config.get('getbankelevs','output'))
-    netf   = str(config.get('getbankelevs','netf'))
-    hrdemf = str(config.get('getbankelevs','hrdemf'))
+    output = str(config.get('getbankelevs', 'output'))
+    netf = str(config.get('getbankelevs', 'netf'))
+    hrdemf = str(config.get('getbankelevs', 'hrdemf'))
 
     try:
-        outlier  = str(config.get('getbankelevs','outlier'))
+        outlier = str(config.get('getbankelevs', 'outlier'))
     except:
         pass
 
     try:
-        hrrivf = str(config.get('getbankelevs','hrrivf'))
+        hrrivf = str(config.get('getbankelevs', 'hrrivf'))
     except:
         pass
 
-    proj     = str(config.get('getbankelevs','proj'))
-    method   = str(config.get('getbankelevs','method'))
-    hrnodata = np.float64(config.get('getbankelevs','hrnodata'))
-    thresh   = np.float64(config.get('getbankelevs','thresh'))
+    proj = str(config.get('getbankelevs', 'proj'))
+    method = str(config.get('getbankelevs', 'method'))
+    hrnodata = np.float64(config.get('getbankelevs', 'hrnodata'))
+    thresh = np.float64(config.get('getbankelevs', 'thresh'))
 
     print("    running getbankelevs.py...")
 
@@ -54,11 +56,11 @@ def getbankelevs(argv):
     w.field('elev')
 
     # coordinates for bank elevations are based in river network mask
-    net   = gdalutils.get_data(netf)
-    geo   = gdalutils.get_geo(netf)
-    iy,ix = np.where(net>0)
-    x     = geo[8][ix]
-    y     = geo[9][iy]
+    net = gdalutils.get_data(netf)
+    geo = gdalutils.get_geo(netf)
+    iy, ix = np.where(net > 0)
+    x = geo[8][ix]
+    y = geo[9][iy]
 
     for i in range(len(x)):
 
@@ -67,46 +69,51 @@ def getbankelevs(argv):
         xmax = x[i] + thresh
         ymax = y[i] + thresh
 
-        dem,dem_geo = gdalutils.clip_raster(hrdemf,xmin,ymin,xmax,ymax)
-        ddem        = np.ma.masked_where(dem==hrnodata,dem)
+        dem, dem_geo = gdalutils.clip_raster(hrdemf, xmin, ymin, xmax, ymax)
+        ddem = np.ma.masked_where(dem == hrnodata, dem)
 
         try:
-            riv,riv_geo = gdalutils.clip_raster(hrrivf,xmin,ymin,xmax,ymax)
-            rriv        = riv
+            riv, riv_geo = gdalutils.clip_raster(
+                hrrivf, xmin, ymin, xmax, ymax)
+            rriv = riv
         except:
             pass
 
         if method == 'near':
             nodata = dem_geo[11]
-            dfdem  = gdalutils.array_to_pandas(dem,dem_geo,nodata,'gt')
-            arr    = haversine.haversine_array(np.array(dfdem['y'].values,dtype='float32'), np.float32(dfdem['x'].values,dtype='float32'), np.float32(y[i]), np.float32(x[i]))
+            dfdem = gdalutils.array_to_pandas(dem, dem_geo, nodata, 'gt')
+            arr = haversine.haversine_array(np.array(dfdem['y'].values, dtype='float32'), np.float32(
+                dfdem['x'].values), np.float32(y[i]), np.float32(x[i]))
             dfdem['dis'] = np.array(arr)
             dfdem.sort_values(by='dis', inplace=True)
-            elev   = dfdem.iloc[0,2]
+            elev = dfdem.iloc[0, 2]
 
         elif method == 'meanmin':
-            if outlier == "yes": ddem = check_outlier(dem,ddem,hrnodata,3.5)
-            elev = np.mean([ddem.mean(),ddem.min()])
-        
+            if outlier == "yes":
+                ddem = check_outlier(dem, ddem, hrnodata, 3.5)
+            elev = np.mean([ddem.mean(), ddem.min()])
+
         elif method == 'mean':
-            if outlier == "yes": ddem = check_outlier(dem,ddem,hrnodata,3.5)
+            if outlier == "yes":
+                ddem = check_outlier(dem, ddem, hrnodata, 3.5)
             elev = ddem.mean()
-        
+
         elif method == 'min':
-            if outlier == "yes": ddem = check_outlier(dem,ddem,hrnodata,3.5)
+            if outlier == "yes":
+                ddem = check_outlier(dem, ddem, hrnodata, 3.5)
             elev = ddem.min()
-        
+
         elif method == 'avgrivpixel':
-            elev = avgrivpixel(ddem,rriv)
-        
+            elev = avgrivpixel(ddem, rriv)
+
         elif method == 'avgedgpixel':
-            elev = avgedgpixel(ddem,rriv)
+            elev = avgedgpixel(ddem, rriv)
 
         # write final value in a shapefile
 
         if np.isfinite(elev):
-            w.point(x[i],y[i])
-            w.record(x[i],y[i],elev)
+            w.point(x[i], y[i])
+            w.record(x[i], y[i], elev)
 
     w.save("%s.shp" % fname)
 
@@ -117,33 +124,34 @@ def getbankelevs(argv):
     prj.write(srs.ExportToWkt())
     prj.close()
 
-    fmt      = "GTiff"
-    nodata   = -9999
+    fmt = "GTiff"
+    nodata = -9999
     bnkname1 = output+".shp"
     bnkname2 = output+".tif"
-    subprocess.call(["gdal_rasterize","-a_nodata",str(nodata),"-of",fmt,"-tr",str(geo[6]),str(geo[7]),"-a","elev","-a_srs",proj,"-te",str(geo[0]),str(geo[1]),str(geo[2]),str(geo[3]),bnkname1,bnkname2])
+    subprocess.call(["gdal_rasterize", "-a_nodata", str(nodata), "-of", fmt, "-tr", str(geo[6]), str(geo[7]), "-a",
+                     "elev", "-a_srs", proj, "-te", str(geo[0]), str(geo[1]), str(geo[2]), str(geo[3]), bnkname1, bnkname2])
 
-def nearivpixel(ddem,rriv,ddsx,ddsy,XA):
 
+def nearivpixel(ddem, rriv, ddsx, ddsy, XA):
     """
     Nearest river pixel when is possible if not
     take value from land
     """
     nodata = -9999
-    _ds    = np.where(rriv>0)
+    _ds = np.where(rriv > 0)
 
     # if there are river pixels in the window
-    if _ds[0].size >0 :
-        XB   = np.vstack((ddsy[_ds[0]],ddsx[_ds[1]])).T
-        ind  = np.int(cdist(XA, XB, metric='euclidean').argmin())
-        elev = ddem[_ds[0][ind],_ds[1][ind]]
+    if _ds[0].size > 0:
+        XB = np.vstack((ddsy[_ds[0]], ddsx[_ds[1]])).T
+        ind = np.int(cdist(XA, XB, metric='euclidean').argmin())
+        elev = ddem[_ds[0][ind], _ds[1][ind]]
 
     # otherwise take nearest value from land
-    elif np.where(rriv==0)[0].size>0:
-        _ds  = np.where(rriv==0)
-        XB   = np.vstack((ddsy[_ds[0]],ddsx[_ds[1]])).T
-        ind  = np.int(cdist(XA, XB, metric='euclidean').argmin())
-        elev = ddem[_ds[0][ind],_ds[1][ind]]
+    elif np.where(rriv == 0)[0].size > 0:
+        _ds = np.where(rriv == 0)
+        XB = np.vstack((ddsy[_ds[0]], ddsx[_ds[1]])).T
+        ind = np.int(cdist(XA, XB, metric='euclidean').argmin())
+        elev = ddem[_ds[0][ind], _ds[1][ind]]
 
     # should be checked
     else:
@@ -151,52 +159,55 @@ def nearivpixel(ddem,rriv,ddsx,ddsy,XA):
 
     return elev
 
-def avgrivpixel(ddem,rriv):
 
+def avgrivpixel(ddem, rriv):
     """
     Average the mean and min of river pixels
     """
     nodata = -9999
-    _ds    = np.where(rriv>0)
+    _ds = np.where(rriv > 0)
 
     # if there are river pixels in the window
-    if _ds[0].size >0 :
-        elev = np.mean([np.ma.masked_where(rriv==0,ddem).mean(),np.ma.masked_where(rriv==0,ddem).min()])
+    if _ds[0].size > 0:
+        elev = np.mean([np.ma.masked_where(rriv == 0, ddem).mean(),
+                        np.ma.masked_where(rriv == 0, ddem).min()])
     # otherwise
     else:
         elev = nodata
 
     return elev
 
-def avgedgpixel(ddem,rriv):
 
+def avgedgpixel(ddem, rriv):
     """
     Average the mean and min of edge pixels
     """
     nodata = -9999
-    _ds    = np.where(rriv>0)
+    _ds = np.where(rriv > 0)
 
     # if there are river pixels in the window
-    if _ds[0].size >0 :
+    if _ds[0].size > 0:
         euclidis = distance_transform_edt(1-rriv)
-        elev = np.mean([np.ma.masked_where(euclidis==1,ddem).mean(),np.ma.masked_where(euclidis==1,ddem).min()])
+        elev = np.mean([np.ma.masked_where(euclidis == 1, ddem).mean(
+        ), np.ma.masked_where(euclidis == 1, ddem).min()])
     # otherwise
     else:
         elev = nodata
 
     return elev
 
-def check_outlier(dem,ddem,hrnodata,thresh):
+
+def check_outlier(dem, ddem, hrnodata, thresh):
 
     shape = dem.shape
-    chk = is_outlier(ddem.reshape(-1,1),thresh)
-    arr = np.where(chk==True)
+    chk = is_outlier(ddem.reshape(-1, 1), thresh)
+    arr = np.where(chk == True)
     if arr[0].size > 0:
-        dem1 = dem.reshape(-1,1)
+        dem1 = dem.reshape(-1, 1)
         dem1_tmp = np.copy(dem1)
         dem1[arr[0]] = hrnodata
         dem2 = dem1.reshape(shape)
-        ddem = np.ma.masked_where(dem2==hrnodata,dem2)
+        ddem = np.ma.masked_where(dem2 == hrnodata, dem2)
 
         # # DEBUG DEBUG DEBUG
         # xaxis = np.arange(0,len(dem1)).reshape(-1,1)
@@ -206,8 +217,8 @@ def check_outlier(dem,ddem,hrnodata,thresh):
 
     return ddem
 
-def is_outlier(points, thresh=3.5):
 
+def is_outlier(points, thresh=3.5):
     """
     Returns a boolean array with True if points are outliers and False
     otherwise.
@@ -231,7 +242,7 @@ def is_outlier(points, thresh=3.5):
     """
 
     if len(points.shape) == 1:
-        points = points[:,None]
+        points = points[:, None]
     median = np.median(points, axis=0)
     diff = np.sum((points - median)**2, axis=-1)
     diff = np.sqrt(diff)
@@ -240,6 +251,7 @@ def is_outlier(points, thresh=3.5):
     modified_z_score = 0.6745 * diff / med_abs_deviation
 
     return modified_z_score > thresh
+
 
 if __name__ == '__main__':
     getbankelevs(sys.argv[1:])

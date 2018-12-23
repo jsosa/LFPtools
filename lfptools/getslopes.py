@@ -2,8 +2,7 @@
 
 # inst: university of bristol
 # auth: jeison sosa
-# date: 21/apr/2017
-# mail: sosa.jeison@gmail.com / j.sosa@bristol.ac.uk
+# mail: j.sosa@bristol.ac.uk / sosa.jeison@gmail.com
 
 import sys
 import getopt
@@ -17,26 +16,27 @@ from lfptools import misc_utils
 from osgeo import osr
 from sklearn import linear_model
 
-def getslopes(argv):
 
+def getslopes(argv):
     """
     Get slopes for the river network
     Finds nearestpoint in banks database to rec's coordinates
     """
 
-    opts, args = getopt.getopt(argv,"i:")
+    opts, args = getopt.getopt(argv, "i:")
     for o, a in opts:
-        if o == "-i": inifile = a
+        if o == "-i":
+            inifile = a
 
     config = configparser.SafeConfigParser()
     config.read(inifile)
 
-    source = str(config.get('getslopes','source'))
-    output = str(config.get('getslopes','output'))
-    netf   = str(config.get('getslopes','netf'))
-    recf  = str(config.get('getslopes','recf'))
-    proj   = str(config.get('getslopes','proj'))
-    step   = int(config.get('getslopes','step'))
+    source = str(config.get('getslopes', 'source'))
+    output = str(config.get('getslopes', 'output'))
+    netf = str(config.get('getslopes', 'netf'))
+    recf = str(config.get('getslopes', 'recf'))
+    proj = str(config.get('getslopes', 'proj'))
+    step = int(config.get('getslopes', 'step'))
 
     print("    runnning get_slopes.py...")
 
@@ -47,38 +47,39 @@ def getslopes(argv):
     geo = gdalutils.get_geo(netf)
 
     # Reading bank file (adjusted bank)
-    elev = np.array(shapefile.Reader(source).records(),dtype='float64')
+    elev = np.array(shapefile.Reader(source).records(), dtype='float64')
 
     # Initiate output shapefile
     w = shapefile.Writer(shapefile.POINT)
     w.field('x')
     w.field('y')
     w.field('slope')
-    
+
     # Retrieving adjusted bank elevations from XXX_bnkfix.shp file
     # Values are stored in rec['bnk']
     bnkadj = []
     for i in rec.index:
-        dis,ind = misc_utils.near_euc(elev[:,0],elev[:,1],(rec['lon'][i],
-                                      rec['lat'][i]))
-        bnkadj.append(elev[ind,2])
+        dis, ind = misc_utils.near_euc(elev[:, 0], elev[:, 1], (rec['lon'][i],
+                                                                rec['lat'][i]))
+        bnkadj.append(elev[ind, 2])
     rec['bnkadj'] = bnkadj
 
     # Calculating slopes
     # coordinates are grouped by REACH number
     rec['slopes'] = 0
     recgrp = rec.groupby('reach')
-    for reach,df in recgrp:
+    for reach, df in recgrp:
         ids = df.index
         dem = df['bnkadj']
         # calc slopes
-        slopes_vals = calc_slope_step(dem,df['lon'].values,df['lat'].values,step)
+        slopes_vals = calc_slope_step(
+            dem, df['lon'].values, df['lat'].values, step)
         rec['slopes'][ids] = slopes_vals
 
     # Writing .shp resulting file
     for i in rec.index:
-        w.point(rec['lon'][i],rec['lat'][i])
-        w.record(rec['lon'][i],rec['lat'][i],rec['slopes'][i])
+        w.point(rec['lon'][i], rec['lat'][i])
+        w.record(rec['lon'][i], rec['lat'][i], rec['slopes'][i])
     w.save("%s.shp" % output)
 
     # write .prj file
@@ -87,23 +88,22 @@ def getslopes(argv):
     srs.ImportFromProj4(proj)
     prj.write(srs.ExportToWkt())
     prj.close()
-    
+
     # Writing .tif file
     nodata = -9999
-    fmt    = "GTiff"
-    name1  = output+".shp"
-    name2  = output+".tif"
-    subprocess.call(["gdal_rasterize","-a_nodata",str(nodata),"-of",fmt,"-tr",
-                     str(geo[6]),str(geo[7]), "-a","slope","-a_srs",proj,"-te"
-                     ,str(geo[0]),str(geo[1]),str(geo[2]),str(geo[3])
-                     ,name1,name2])
+    fmt = "GTiff"
+    name1 = output+".shp"
+    name2 = output+".tif"
+    subprocess.call(["gdal_rasterize", "-a_nodata", str(nodata), "-of", fmt, "-tr",
+                     str(geo[6]), str(geo[7]), "-a", "slope", "-a_srs", proj, "-te", str(geo[0]), str(geo[1]), str(geo[2]), str(geo[3]), name1, name2])
 
-def calc_slope_step(dem,x,y,step):
+
+def calc_slope_step(dem, x, y, step):
 
     myslp = np.ones(dem.size)*-9999
-    
+
     # calculate distance by using haversine equation
-    dis   = calc_dis_xy(x,y)
+    dis = calc_dis_xy(x, y)
 
     # fit a linear regression by using Scikit learn, other more sophistcated
     # methods can be used to estimate the slope check on Linear regression methods
@@ -111,15 +111,17 @@ def calc_slope_step(dem,x,y,step):
 
     for i in range(len(dem)):
 
-        left    = max(0,i-step)
-        right   = min(len(dem),i+step+1) # +1 because inclusive slicing
-        X_train = dis[left:right].reshape(-1,1)*1000 # *1000 -> to convert from kilometers in meters, reshape -> to requirement scikitlearn 
+        left = max(0, i-step)
+        right = min(len(dem), i+step+1)  # +1 because inclusive slicing
+        # *1000 -> to convert from kilometers in meters, reshape -> to requirement scikitlearn
+        X_train = dis[left:right].reshape(-1, 1)*1000
         Y_train = dem[left:right]
-        regr    = linear_model.LinearRegression()
+        regr = linear_model.LinearRegression()
         regr.fit(X_train, Y_train)
-        slp     = abs(regr.coef_)
+        slp = abs(regr.coef_)
 
-        if slp <= 0.000001: slp = 0.0001
+        if slp <= 0.000001:
+            slp = 0.0001
         myslp[i] = slp
 
         # # DEBUG DEBUG DEBUG
@@ -130,8 +132,8 @@ def calc_slope_step(dem,x,y,step):
 
     return myslp
 
-def haversine(point1, point2, miles=False):
 
+def haversine(point1, point2, miles=False):
     """
     Calculate the great-circle distance bewteen two points on the Earth surface.
     Uses Numpy functions
@@ -154,13 +156,15 @@ def haversine(point1, point2, miles=False):
     else:
         return h  # in kilometers
 
-def calc_dis_xy(x,y):
+
+def calc_dis_xy(x, y):
     dis = np.zeros(x.size)
     for i in range(len(dis)):
         if i > 0:
-            dis[i] = haversine([y[i],x[i]],[y[i-1],x[i-1]])
+            dis[i] = haversine([y[i], x[i]], [y[i-1], x[i-1]])
         discum = np.cumsum(dis)
     return discum
+
 
 if __name__ == '__main__':
     getslopes(sys.argv[1:])
