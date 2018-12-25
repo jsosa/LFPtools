@@ -10,8 +10,9 @@ import subprocess
 import configparser
 import getopt
 import numpy as np
-from lfptools import shapefile
 import gdalutils
+from lfptools import shapefile
+from lfptools import misc_utils
 from osgeo import osr
 from scipy.spatial.distance import cdist
 from scipy.optimize import fsolve
@@ -43,7 +44,6 @@ def getdepths(argv):
 
     proj = str(config.get('getdepths', 'proj'))
     netf = str(config.get('getdepths', 'netf'))
-    recf = str(config.get('getdepths', 'recf'))
     method = str(config.get('getdepths', 'method'))
     output = str(config.get('getdepths', 'output'))
 
@@ -78,7 +78,7 @@ def getdepths(argv):
     w.field('depth')
 
     if method == "depth_raster":
-        depth_raster(w, path, catchment, thresh)
+        depth_raster(w, fdepth, netf, thresh)
     elif method == "depth_geometry":
         depth_geometry(w, r, p, wdtf)
     elif method == "depth_manning":
@@ -105,36 +105,41 @@ def getdepths(argv):
                      "-a", "depth", "-a_srs", proj, "-te", str(mygeo[0]), str(mygeo[1]), str(mygeo[2]), str(mygeo[3]), name1, name2])
 
 
-def depth_raster(w, fdepth, path, catchment, thresh):
+def depth_raster(w, fdepth, netf, thresh):
     """
-    NOT WORKING
     From a raster of depths this subroutine finds nearest depth to every river pixel in grid
     """
 
-    # Uses the river network file in each catchment (Ex. 276_net30.tif)
-    net = gdalutils.get_data(path+"/"+catchment+"/"+catchment+"_net30.tif")
-    geo = gdalutils.get_geo(path+"/"+catchment+"/"+catchment+"_net30.tif")
-    iy, ix = np.where(net > 0)
-    x = geo[8][ix]
-    y = geo[9][iy]
+    # Reading river network file
+    dat_net = gdalutils.get_data(netf)
+    geo_net = gdalutils.get_geo(netf)
+    iy, ix = np.where(dat_net > 0)
+    xx = geo_net[8][ix]
+    yy = geo_net[9][iy]
 
-    for i in range(len(x)):
+    # Reading depth source file
+    dat = gdalutils.get_data(fdepth)
+    geo = gdalutils.get_geo(fdepth)
+    iy, ix = np.where(dat > -9999)
+    xdat = geo[8][ix]
+    ydat = geo[9][iy]
 
-        print("getdepths.py - " + str(len(x)-i))
+    depth = []
+    for x, y in zip(xx, yy):
+        try:
+            dis, ind = misc_utils.near_euc(xdat, ydat, (x, y))
+            if dis <= thresh:
+                val = dat[iy[ind], ix[ind]]
+                depth.append(val)
+            else:
+                depth.append(np.nan)
+        except ValueError:
+            depth.append(np.nan)
 
-        xmin = x[i] - thresh
-        ymin = y[i] - thresh
-        xmax = x[i] + thresh
-        ymax = y[i] + thresh
+    for x,y,mydepth in zip(xx,yy,depth):
+        w.point(x,y)
+        w.record(x,y,mydepth)
 
-        depth, depth_geo = gdalutils.clip_raster(
-            fdepth, xmin, ymin, xmax, ymax)
-
-        mydepth = nearpixel(depth, depth_geo[8], depth_geo[9], np.array(
-            [[y[i], x[i]]]))  # nearest pixel river
-
-        w.point(x[i], y[i])
-        w.record(x[i], y[i], mydepth)
     return w
 
 
