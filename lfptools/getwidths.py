@@ -13,7 +13,6 @@ import pandas as pd
 import gdalutils
 from lfptools import shapefile
 from lfptools import misc_utils
-from lfptools.outlier import outlier
 from osgeo import osr
 
 
@@ -117,9 +116,6 @@ def getwidths(argv):
             return b
     rec.loc[:, 'width'] = rec.groupby('link').width.apply(check_width)
 
-    # Saving width data in csv
-    rec.to_csv(output+".csv")
-
    # Writing .shp resulting file
     for x, y, width in zip(rec['lon'], rec['lat'], rec['width']):
         w.point(x, y)
@@ -142,13 +138,6 @@ def getwidths(argv):
     subprocess.call(["gdal_rasterize", "-a_nodata", str(nodata), "-of", fmt, "-tr", str(geo[6]), str(geo[7]),
                      "-a", "width", "-a_srs", proj, "-te", str(geo[0]), str(geo[1]), str(geo[2]), str(geo[3]), name1, name2])
 
-    # # Fix dataset
-    # shpf = name1
-    # labl = 'width'
-    # outf = output
-    # outlier(recf,proj,netf,shpf,labl,outf,'qua')
-
 
 if __name__ == '__main__':
     getwidths(sys.argv[1:])
-    # getwidths()

@@ -13,6 +13,9 @@ binaries = ['bin/lfp-fixelevs',
             'bin/lfp-rasterresample',
             'bin/lfp-split',
             'bin/lfp-getinflows',
+            'bin/lfp-getdischarge',
+            'bin/lfp-getrunoff',
+            'bin/lfp-buildmodel'
             ]
 
 ext_modules = [

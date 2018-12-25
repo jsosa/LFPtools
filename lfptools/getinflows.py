@@ -31,13 +31,10 @@ def getinflows(argv):
     ncf = str(config.get('getinflows', 'ncf'))
     ncproj = str(config.get('getinflows', 'ncproj'))
     recf = str(config.get('getinflows', 'recf'))
-    netf = str(config.get('getinflows', 'netf'))
     proj = str(config.get('getinflows', 'proj'))
     output = str(config.get('getinflows', 'output'))
 
     print("    running getinflows.py...")
-
-    mygeo = gu.get_geo(netf)
 
     fname = output
 
@@ -117,12 +114,6 @@ def getinflows(argv):
 
     # Write geodataframe
     gdf.to_file(output, driver='GeoJSON')
-
-    # fmt    = "GTiff"
-    # nodata = -9999
-    # name1  = fname+".shp"
-    # name2  = fname+".tif"
-    # subprocess.call(["gdal_rasterize","-a_nodata",str(nodata),"-of",fmt,"-tr",str(mygeo[6]),str(mygeo[7]),"-a","mean","-a_srs",proj,"-te",str(mygeo[0]),str(mygeo[1]),str(mygeo[2]),str(mygeo[3]),name1,name2])
 
 
 def find_nearest_mean_mask(ncf, ncproj, lon, lat, proj, thresh_mean=5, thresh_dis=2.5):
