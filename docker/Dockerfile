@@ -1,4 +1,4 @@
-FROM dkr-taudem:latest
+FROM jsosa/dkr-taudem:latest
 
 MAINTAINER Jeison Sosa <j.sosa@bristol.ac.uk>
 
@@ -18,3 +18,4 @@ RUN conda install -y \
 RUN pip install \
     git+https://github.com/jsosa/hydroutils.git \
     git+https://github.com/jsosa/gdalutils.git \
+    git+https://github.com/jsosa/LFPtools.git \
