@@ -51,7 +51,7 @@ lfp-getwidhts -i config.txt
 
 Input parameters in the configuration file for each tool can be obtained via `-h` option after the tool name:
 
-```bash
+```shell
 >> lfp-getwidhts -h
 
 LFPtools v0.1
