@@ -49,9 +49,7 @@ Programs run by reading input parameters from a configuration file via `-i` opti
 lfp-getwidhts -i config.txt
 ```
 
-Input parameters in the configuration file for each tool can be obtained via `-h` option after the tool name
-
-invoking `-h` after the program:
+Input parameters in the configuration file for each tool can be obtained via `-h` option after the tool name:
 
 ```bash
 >> lfp-getwidhts -h
