@@ -19,6 +19,48 @@ from osgeo import osr
 
 
 def fixelevs(argv):
+
+    myhelp = '''
+LFPtools v0.1
+
+Name
+----
+fixelevs
+
+Description
+-----------
+Fix DEM elevations using either of two methods:
+- yamazaki (Yamazaki et al., 2012 J. Hydrol)
+- lowless (Locally Weighted Scatterplot Smoothing)
+
+Usage
+-----
+>> lfp-fixelevs -i config.txt
+
+Content in config.txt
+---------------------
+[fixelevs]
+output = Shapefile output file path
+recf   = `Rec` file path
+netf   = Target mask file path
+proj   = Output projection in Proj4 format
+method = yamazaki, lowless
+source = Shapefile input file to fix (e.g from lfp-getbankelevs)
+'''
+
+    try:
+        opts, args = getopt.getopt(argv, "i:")
+        for o, a in opts:
+            if o == "-i":
+                inifile = a
+    except:
+        print(myhelp)
+        sys.exit(0)
+
+    config = configparser.SafeConfigParser()
+    config.read(inifile)
+
+
     """
     This function uses the output from streamnet function from
     TauDEM, specifically the "coord" and "tree" files to adjust
@@ -32,14 +74,6 @@ def fixelevs(argv):
     selecting the minimum elevation value.
 
     """
-
-    opts, args = getopt.getopt(argv, "i:")
-    for o, a in opts:
-        if o == "-i":
-            inifile = a
-
-    config = configparser.SafeConfigParser()
-    config.read(inifile)
 
     source = str(config.get('fixelevs', 'source'))
     output = str(config.get('fixelevs', 'output'))

@@ -19,10 +19,39 @@ from scipy.spatial.distance import cdist
 
 def getbedelevs(argv):
 
-    opts, args = getopt.getopt(argv, "i:")
-    for o, a in opts:
-        if o == "-i":
-            inifile = a
+    myhelp = '''
+LFPtools v0.1
+
+Name
+----
+getbedelevs
+
+Description
+-----------
+Get bed elevations by substracting depth from banks
+
+Usage
+-----
+>> lfp-getbedelevs -i config.txt
+
+Content in config.txt
+---------------------
+[getbedelevs]
+output = Shapefile output file path
+netf   = Target mask file path
+proj   = Output projection in Proj4 format
+bnkf   = Shapefile input bank
+dptf   = Shapefile input depth
+'''
+
+    try:
+        opts, args = getopt.getopt(argv, "i:")
+        for o, a in opts:
+            if o == "-i":
+                inifile = a
+    except:
+        print(myhelp)
+        sys.exit(0)
 
     config = configparser.SafeConfigParser()
     config.read(inifile)

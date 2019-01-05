@@ -19,25 +19,67 @@ from scipy.optimize import fsolve
 
 
 def getdepths(argv):
-    """
-    Get depths to river pixels in river network. Three methods availables:
 
-    1) depth_raster
-        Get depths from a raster of depths
+    myhelp = '''
+LFPtools v0.1
 
-    2) depth_geometry
-        Get depths by using hydraulic geometry equation
-        depth = r * width ^ p
+Name
+----
+getdepths
 
-    3) depth_mannings
-        Get depths by using simplified mannings equation
-        ((bankfull_flow*manning_coef)/(slope**0.5*width))**(3/5.)
-    """
+Description
+-----------
+Get river depths, three methods availables:
 
-    opts, args = getopt.getopt(argv, "i:")
-    for o, a in opts:
-        if o == "-i":
-            inifile = a
+1) depth_raster
+    Get depths from a raster of depths
+
+2) depth_geometry
+    Get depths by using hydraulic geometry equation
+    depth = r * width ^ p
+
+3) depth_mannings
+    Get depths by using simplified mannings equation
+    ((bankfull_flow*manning_coef)/(slope**0.5*width))**(3/5.)
+
+Usage
+-----
+>> lfp-getdepths -i config.txt
+
+Content in config.txt
+---------------------
+[getdepths]
+recf   = `Rec` file path
+proj   = Output projection in Proj4 format
+netf   = Target mask file path
+method = depth_raster, depth_geometry, depth_mannings
+output = Shapefile output file path
+
+# If depth_raster
+fdepth = Depth raster source file GDAL format projection EPSG:4326
+thresh = Serching threshold in degrees
+
+# If depth_geometry
+wdtf   = Shapefile width from lfp-getwidths
+r      = Constant number
+p      = Constant number
+
+# If depth_mannings
+n      = Manning's coefficient 
+wdtf   = Shapefile width from lfp-getwidths
+slpf   = Shapefile slope from lfp-getslopes
+qbnkf  = Shapefile q bank full
+
+'''
+
+    try:
+        opts, args = getopt.getopt(argv, "i:")
+        for o, a in opts:
+            if o == "-i":
+                inifile = a
+    except:
+        print(myhelp)
+        sys.exit(0)
 
     config = configparser.SafeConfigParser()
     config.read(inifile)

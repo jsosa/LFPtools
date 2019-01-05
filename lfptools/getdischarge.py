@@ -18,10 +18,42 @@ from pyproj import transform
 
 def getdischarge(argv):
 
-    opts, args = getopt.getopt(argv, "i:")
-    for o, a in opts:
-        if o == "-i":
-            inifile = a
+    myhelp = '''
+LFPtools v0.1
+
+Name
+----
+getdischarge
+
+Description
+-----------
+Retrieve discharge from a netCDF source following a predefined inflows locations (e.g. from lfp-getinflows)
+
+Usage
+-----
+>> lfp-getdischarge -i config.txt
+
+Content in config.txt
+---------------------
+[getdischarge]
+ncf    = NetCDF source file
+ncproj = Projection netCDF file e.g. epsg:3035
+infshp = Inflow locations e.g. from lfp-getinflows
+proj   = Output projection e.g. epsg:4326
+output = Output file, a CSV
+date1  = Start date e.g. 1990-01-01
+date2  = End date e.g. 1990-01-30
+'''
+
+    try:
+        opts, args = getopt.getopt(argv, "i:")
+        for o, a in opts:
+            if o == "-i":
+                inifile = a
+    except:
+        print(myhelp)
+        sys.exit(0)
+
     config = configparser.SafeConfigParser()
     config.read(inifile)
 

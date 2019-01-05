@@ -19,32 +19,30 @@ from osgeo import osr
 def getwidths(argv):
 
     myhelp = '''
-    
-            LFPtools v0.1
+LFPtools v0.1
 
-            Name
-            ————
-            getwidths
+Name
+----
+getwidths
 
-            Description
-            ———————————
-            Retrieve river widths from a data set
+Description
+-----------
+Retrieve river widths from a data set
 
-            Usage
-            —————
-            >> lfp-getwidths -i config.txt
+Usage
+-----
+>> lfp-getwidths -i config.txt
 
-            Content in config.txt
-            —————————————————————
-            [getwidths]
-            thresh = Searching window threshold in same units as input data set
-            output = Shapefile output file path
-            recf   = `Rec` file path
-            netf   = Target mask file path
-            proj   = Output projection in Proj4 format
-            fwidth = Source width file path
-            
-            '''
+Content in config.txt
+---------------------
+[getwidths]
+thresh = Searching window threshold in same units as input data set
+output = Shapefile output file path
+recf   = `Rec` file path
+netf   = Target mask file path
+proj   = Output projection in Proj4 format
+fwidth = Source width file path GDAL format
+'''
 
     try:
         opts, args = getopt.getopt(argv, "i:")

@@ -15,29 +15,46 @@ from osgeo import osr
 
 
 def rasterresample(argv):
-    """
-    This function uses the output from streamnet function from
-    TauDEM, specifically the "coord" and "tree" files to calculate
-    bank elevations based on high resolution DEM with different methods
 
-    Usage:
+    myhelp = '''
+LFPtools v0.1
 
-        python rasterresample.py -i config.ini
+Name
+----
+rasterresample
 
-        [rasterresample]
-        method = near or mean
-        thresh = thresohld applied on the left, right, up and down
-        hrdemf = path high resolution array
-        lrdemf = path resampled array
-        resx   = resolution in y, degrees
-        resy   = resolution in x, degrees
+Description
+-----------
+Resample a DEM by upscaling. It applies a reductions method like
+mean, min or meanmin. Outlier detection is also available before running
+the reduction method. nproc option defines number of cores to be used when
+resampling.
 
-    """
+Usage
+-----
+>> lfp-rasterresample -i config.txt
 
-    opts, args = getopt.getopt(argv, "i:")
-    for o, a in opts:
-        if o == "-i":
-            inifile = a
+Content in config.txt
+---------------------
+[rasterresample]
+nproc    = Number of cores to use
+outlier  = Outlier detection yes/no
+method   = Reduction method mean, min, meanmin
+hrnodata = High resolution NODATA value
+thresh   = Searching windows threshold
+demf     = High resolution DEM
+netf     = Target mask file path
+output   = Output file, GeoTIFF output
+'''
+
+    try:
+        opts, args = getopt.getopt(argv, "i:")
+        for o, a in opts:
+            if o == "-i":
+                inifile = a
+    except:
+        print(myhelp)
+        sys.exit(0)
 
     config = configparser.SafeConfigParser()
     config.read(inifile)
@@ -60,6 +77,7 @@ def rasterresample(argv):
     # coordinates for bank elevations are based in river network mask
     net = gdalutils.get_data(netf)
     geo = gdalutils.get_geo(netf)
+
     # consider all pixels in net30 including river network pixels
     iy, ix = np.where(net > -1)
     x = geo[8][ix]

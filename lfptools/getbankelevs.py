@@ -19,10 +19,44 @@ from scipy.spatial.distance import cdist
 
 def getbankelevs(argv):
 
-    opts, args = getopt.getopt(argv, "i:")
-    for o, a in opts:
-        if o == "-i":
-            inifile = a
+    myhelp = '''
+LFPtools v0.1
+
+Name
+----
+getbankelevs
+
+Description
+-----------
+Get river banks elevations from a high resolution DEM by reductions method like
+nearest neighbour, mean, min or meanmin. Additionally, an outlier detection
+can be applied to before running the reduction method.
+
+Usage
+-----
+>> lfp-getbankelevs -i config.txt
+
+Content in config.txt
+---------------------
+[getbankelevs]
+output   = Shapefile output file path
+netf     = Target mask file path
+proj     = Output projection in Proj4 format
+outlier  = Outlier detection yes/no
+method   = Reductions available near, mean, min, meanmin
+hrnodata = NODATA value for high resolution DEM
+thresh   = Saerching threshold in degrees
+hrdemf   = High resolution DEM
+'''
+
+    try:
+        opts, args = getopt.getopt(argv, "i:")
+        for o, a in opts:
+            if o == "-i":
+                inifile = a
+    except:
+        print(myhelp)
+        sys.exit(0)
 
     config = configparser.SafeConfigParser()
     config.read(inifile)
@@ -109,7 +143,7 @@ def getbankelevs(argv):
         elif method == 'avgedgpixel':
             elev = avgedgpixel(ddem, rriv)
 
-        # write final value in a shapefile
+        # Write final file in a shapefile
 
         if np.isfinite(elev):
             w.point(x[i], y[i])
@@ -117,7 +151,7 @@ def getbankelevs(argv):
 
     w.save("%s.shp" % fname)
 
-    # write .prj file
+    # Write .prj file
     prj = open("%s.prj" % fname, "w")
     srs = osr.SpatialReference()
     srs.ImportFromProj4(proj)

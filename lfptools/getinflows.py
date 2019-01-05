@@ -20,10 +20,39 @@ from shapely.geometry import Point
 
 def getinflows(argv):
 
-    opts, args = getopt.getopt(argv, "i:")
-    for o, a in opts:
-        if o == "-i":
-            inifile = a
+    myhelp = '''
+LFPtools v0.1
+
+Name
+----
+getinflows
+
+Description
+-----------
+Locate inflow points that can be used as boundary condition from a source e.g. discharge
+
+Usage
+-----
+>> lfp-getinflows -i config.txt
+
+Content in config.txt
+---------------------
+[getinflows]
+ncf    = GeoTIFF file containing river network mask with means for example
+ncproj = Projection mask e.g. epsg:3035
+recf   = `Rec` file path
+proj   = Projection output file e.g. epsg:4326
+output = Output file
+'''
+
+    try:
+        opts, args = getopt.getopt(argv, "i:")
+        for o, a in opts:
+            if o == "-i":
+                inifile = a
+    except:
+        print(myhelp)
+        sys.exit(0)
 
     config = configparser.SafeConfigParser()
     config.read(inifile)

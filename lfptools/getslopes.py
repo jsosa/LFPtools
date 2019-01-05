@@ -18,15 +18,44 @@ from sklearn import linear_model
 
 
 def getslopes(argv):
-    """
-    Get slopes for the river network
-    Finds nearestpoint in banks database to rec's coordinates
-    """
 
-    opts, args = getopt.getopt(argv, "i:")
-    for o, a in opts:
-        if o == "-i":
-            inifile = a
+    myhelp = '''
+LFPtools v0.1
+
+Name
+----
+getslopes
+
+Description
+-----------
+Estimate slopes from a bank file (e.g. from lfp-fixelevs), slope
+is estimated by fitting a 1st order model on the elevations. The
+number of elevations to take is based on the parameter `step` in the
+config.txt file
+
+Usage
+-----
+>> lfp-getslopes -i config.txt
+
+Content in config.txt
+---------------------
+[getslopes]
+source = File from which get the slopes e.g. resulting file from lfp-fixelevs
+output = Output file
+netf = Target mask file path
+recf = `Rec` file path
+proj = Output projection is Proj4 format
+step = steps to count, upstream and downstream
+'''
+
+    try:
+        opts, args = getopt.getopt(argv, "i:")
+        for o, a in opts:
+            if o == "-i":
+                inifile = a
+    except:
+        print(myhelp)
+        sys.exit(0)
 
     config = configparser.SafeConfigParser()
     config.read(inifile)
