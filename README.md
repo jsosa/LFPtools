@@ -25,7 +25,7 @@ A second option is to run directly the Docker container which includes all depen
 
 **lfp-getdepths:** Get river depths, three methods availables: 1) get depths from a raster of depths 2) get depths by using hydraulic geometry equation depth = r * width ^ p and 3) get depths by using simplified mannings equation
 
-**lfp-getwidths:** Retrieve river widths from a external data set (e.g. [GRWL](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2013WR014664), [GWD-LR](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2013WR014664))
+**lfp-getwidths:** Retrieve river widths from a external data set (e.g. [GRWL](http://science.sciencemag.org/content/early/2018/06/27/science.aat0636), [GWD-LR](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2013WR014664))
 
 **lfp-getbankelevs:** Get river banks elevations from a high resolution DEM by reductions method like nearest neighbour, mean, min or meanmin. Additionally, an outlier detection can be applied to before running the reduction method.
 
