@@ -4,10 +4,12 @@
 
 ### Installation
 
+#### Via pip
 Just run this line after installing all dependencies
 
 ``` pip install git+https://github.com/jsosa/LFPtools.git```
 
+#### Docker
 A second option is to download and run a Docker image which includes all dependecies and is ready to use
 
 ```bash
