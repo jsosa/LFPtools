@@ -7,7 +7,7 @@
 import os
 import shutil
 from glob import glob
-import gzip
+import zipfile
 import numpy as np
 import pandas as pd
 import gdalutils
@@ -151,3 +151,54 @@ def get_ascii_dat(filename):
         data = gdalutils.get_data(filename)
 
     return data
+
+def _return_projection(proj4):
+
+    srs = osr.SpatialReference()
+    proj = proj4
+    srs.ImportFromProj4(proj)
+    return srs
+
+def extract_from_zip(zipresults,date,date1,date2,var,proj4,outfile):
+    """
+    Extract variable per date then convert to GTIFF
+    
+    Example
+    -------
+    import lfptools.utils as lfp
+    proj4 = '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs'
+    lfp.extract_from_zip('./176.zip','2002-08-20','1990-01-01','2014-12-31','wd',proj4,'./tmp.tif')
+
+    """
+
+    tmpdir = os.path.dirname(outfile) + '/tmp/'
+    try:
+        os.mkdir(tmpdir)
+    except FileExistsError:
+        pass
+
+    # Open zip
+    myzip = zipfile.ZipFile(zipresults)
+
+    # Get list of files in zip
+    mylist = sorted(myzip.namelist())
+    myvar = [i for i in mylist if i.endswith('.' + var)]
+
+    # Simulation times
+    dates = pd.date_range(date1,date2)
+
+    # Retrieve filenames based on dates
+    ix = np.where(dates==date)[0][0]
+
+    # Extract ASCII file
+    myzip.extract(myvar[ix],tmpdir)
+
+    # Get info from ASCII
+    fname = tmpdir + myvar[ix]
+    dat = gdalutils.get_data(fname)
+    geo = gdalutils.get_geo(fname)
+    geo[10] = _return_projection(proj4)
+    gdalutils.write_raster(dat, outfile, geo, 'Float64', geo[-1])
+
+    # Remove temp folder
+    shutil.rmtree(tmpdir)
