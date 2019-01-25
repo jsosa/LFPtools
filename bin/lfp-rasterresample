@@ -3,4 +3,4 @@
 import sys
 from lfptools import rasterresample
 
-rasterresample.rasterresample(sys.argv[1:])
+rasterresample.rasterresample_shell(sys.argv[1:])

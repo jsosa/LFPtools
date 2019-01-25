@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 
-def getrunoff(argv):
+def getrunoff_shell(argv):
 
     myhelp = '''
 LFPtools v0.1
@@ -50,12 +50,17 @@ output = Output file
     discsv = str(config.get('getrunoff', 'discsv'))
     output = str(config.get('getrunoff', 'output'))
 
+    getrunoff(discsv,output)
+
+def getrunoff(discsv,output):
+
     print("    running getrunoff.py...")
 
     # Reading discharge data
     df = pd.read_csv(discsv, index_col=0)
 
     # Use discharge CSV to calculate runoff
+    # Groups per link
     grouped = df.groupby('link')
     res = pd.DataFrame()
     for name, group in grouped:
@@ -77,4 +82,4 @@ output = Output file
 
 
 if __name__ == '__main__':
-    getrunoff(sys.argv[1:])
+    getrunoff_shell(sys.argv[1:])

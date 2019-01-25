@@ -3,4 +3,4 @@
 import sys
 from lfptools import getinflows
 
-getinflows.getinflows(sys.argv[1:])
+getinflows.getinflows_shell(sys.argv[1:])

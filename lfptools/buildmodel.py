@@ -14,7 +14,7 @@ import pandas as pd
 import gdalutils
 
 
-def buildmodel(argv):
+def buildmodel_shell(argv):
     """
     Main program to build a LISFLOOD-FP model
     """
@@ -43,6 +43,15 @@ def buildmodel(argv):
     reccsv = str(config.get('buildmodel', 'reccsv'))
     date1 = str(config.get('buildmodel', 'date1'))
     date2 = str(config.get('buildmodel', 'date2'))
+
+    buildmodel(parlfp, bcilfp, bdylfp, runcsv, evaplfp, gaugelfp, stagelfp,
+               demtif, dembnktif, dembnktif_1D, fixbnktif, wdttif,
+               bedtif, dirtif, reccsv, date1, date2)
+
+
+def buildmodel(parlfp, bcilfp, bdylfp, runcsv, evaplfp, gaugelfp, stagelfp,
+               demtif, dembnktif, dembnktif_1D, fixbnktif, wdttif,
+               bedtif, dirtif, reccsv, date1, date2):
 
     print("    running buildmodel.py...")
 
@@ -128,7 +137,7 @@ def write_bdy(bdylfp, runcsv, t):
     run = pd.read_csv(runcsv, index_col=0)
 
     # Select only date columns
-    rund = run[[i for i in run.columns if i[0] == '1']].T
+    rund = run[[i for i in run.columns if (i[0] == '1') | (i[0] == '2')]].T
 
     # creating file
     with open(bdylfp, 'w') as f:
@@ -155,7 +164,7 @@ def write_bci(bcilfp, runcsv):
 
     run = pd.read_csv(runcsv, index_col=0)
 
-    runi = run[['x', 'y', 'near_x', 'near_y', 'link']].T
+    runi = run[['x', 'y']].T
 
     # creating file
     with open(bcilfp, 'w') as f:
@@ -279,4 +288,4 @@ def write_par(parlfp, bcilfp, bdylfp, evaplfp, gaugelfp, stagelfp, dembnktif, wd
 
 
 if __name__ == '__main__':
-    buildmodel(sys.argv[1:])
+    buildmodel_shell(sys.argv[1:])

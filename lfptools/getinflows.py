@@ -4,6 +4,7 @@
 # auth: jeison sosa
 # mail: sosa.jeison@gmail.com / j.sosa@bristol.ac.uk
 
+import os
 import sys
 import pdb
 import getopt
@@ -18,7 +19,7 @@ from pyproj import transform
 from shapely.geometry import Point
 
 
-def getinflows(argv):
+def getinflows_shell(argv):
 
     myhelp = '''
 LFPtools v0.1
@@ -62,6 +63,11 @@ output = Output file
     recf = str(config.get('getinflows', 'recf'))
     proj = str(config.get('getinflows', 'proj'))
     output = str(config.get('getinflows', 'output'))
+
+    getinflows(ncf, ncproj, recf, proj, output)
+
+
+def getinflows(ncf, ncproj, recf, proj, output):
 
     print("    running getinflows.py...")
 
@@ -142,7 +148,11 @@ output = Output file
                            Point(xy) for xy in zip(df_new.x, df_new.y)])
 
     # Write geodataframe
-    gdf.to_file(output, driver='GeoJSON')
+    try:
+        gdf.to_file(output, driver='GeoJSON')
+    except:
+        os.remove(output)
+        gdf.to_file(output, driver='GeoJSON')
 
 
 def find_nearest_mean_mask(ncf, ncproj, lon, lat, proj, thresh_mean=5, thresh_dis=2.5):
@@ -218,4 +228,4 @@ def check_next_greater(arr, thresh):
 
 
 if __name__ == '__main__':
-    getinflows(sys.argv[1:])
+    getinflows_shell(sys.argv[1:])

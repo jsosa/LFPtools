@@ -3,4 +3,4 @@
 import sys
 from lfptools import buildmodel
 
-buildmodel.buildmodel(sys.argv[1:])
+buildmodel.buildmodel_shell(sys.argv[1:])

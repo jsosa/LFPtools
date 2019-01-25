@@ -18,7 +18,7 @@ import gdalutils
 from osgeo import osr
 
 
-def fixelevs(argv):
+def fixelevs_shell(argv):
 
     myhelp = '''
 LFPtools v0.1
@@ -81,6 +81,10 @@ source = Shapefile input file to fix (e.g from lfp-getbankelevs)
     recf = str(config.get('fixelevs', 'recf'))
     proj = str(config.get('fixelevs', 'proj'))
     method = str(config.get('fixelevs', 'method'))
+
+    fixelevs(source,output,netf,recf,proj,method)
+
+def fixelevs(source,output,netf,recf,proj,method):
 
     print("    running fixelevs.py...")
 
@@ -255,4 +259,4 @@ def lowless(dem):
 
 
 if __name__ == '__main__':
-    fixelevs(sys.argv[1:])
+    fixelevs_shell(sys.argv[1:])

@@ -17,7 +17,7 @@ from shapely.geometry import Point
 from scipy.spatial.distance import cdist
 
 
-def getbedelevs(argv):
+def getbedelevs_shell(argv):
 
     myhelp = '''
 LFPtools v0.1
@@ -62,6 +62,10 @@ dptf   = Shapefile input depth
     output = str(config.get('getbedelevs', 'output'))
     proj = str(config.get('getbedelevs', 'proj'))
 
+    getbedelevs(bnkf,dptf,netf,output,proj)
+
+def getbedelevs(bnkf,dptf,netf,output,proj):
+
     print("    running getbedelevs.py...")
 
     bnk = gpd.read_file(bnkf)
@@ -93,4 +97,4 @@ dptf   = Shapefile input depth
 
 
 if __name__ == '__main__':
-    getbedelevs(sys.argv[1:])
+    getbedelevs_shell(sys.argv[1:])

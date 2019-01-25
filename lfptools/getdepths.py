@@ -18,7 +18,7 @@ from scipy.spatial.distance import cdist
 from scipy.optimize import fsolve
 
 
-def getdepths(argv):
+def getdepths_shell(argv):
 
     myhelp = '''
 LFPtools v0.1
@@ -89,11 +89,10 @@ qbnkf  = Shapefile q bank full
     method = str(config.get('getdepths', 'method'))
     output = str(config.get('getdepths', 'output'))
 
-    print("    runnning getdepths.py...")
-
     try:
         fdepth = str(config.get('getdepths', 'fdepth'))
         thresh = np.float64(config.get('getdepths', 'thresh'))
+        kwargs = {'fdepth':fdepth,'thresh':thresh}
     except:
         pass
 
@@ -101,6 +100,7 @@ qbnkf  = Shapefile q bank full
         wdtf = str(config.get('getdepths', 'wdtf'))
         r = np.float64(config.get('getdepths', 'r'))
         p = np.float64(config.get('getdepths', 'p'))
+        kwargs = {'wdtf':wdtf,'r':r,'p':p}
     except:
         pass
 
@@ -109,8 +109,15 @@ qbnkf  = Shapefile q bank full
         wdtf = str(config.get('getdepths', 'wdtf'))
         slpf = str(config.get('getdepths', 'slpf'))
         qbnkf = str(config.get('getdepths', 'qbnkf'))
+        kwargs = {'n':n,'wdtf':wdtf,'slpf':slpf,'qbnkf':qbnkf}
     except:
         pass
+
+    getdepths(proj,netf,method,output,**kwargs)
+
+def getdepths(proj,netf,method,output,**kwargs):
+
+    print("    runnning getdepths.py...")
 
     fname = output
 
@@ -120,11 +127,11 @@ qbnkf  = Shapefile q bank full
     w.field('depth')
 
     if method == "depth_raster":
-        depth_raster(w, fdepth, netf, thresh)
+        depth_raster(w, netf, **kwargs)
     elif method == "depth_geometry":
-        depth_geometry(w, r, p, wdtf)
+        depth_geometry(w, **kwargs)
     elif method == "depth_manning":
-        depth_manning(w, n, qbnkf, slpf, wdtf)
+        depth_manning(w, **kwargs)
     else:
         sys.exit("ERROR method not recognised")
 
@@ -147,7 +154,7 @@ qbnkf  = Shapefile q bank full
                      "-a", "depth", "-a_srs", proj, "-te", str(mygeo[0]), str(mygeo[1]), str(mygeo[2]), str(mygeo[3]), name1, name2])
 
 
-def depth_raster(w, fdepth, netf, thresh):
+def depth_raster(w, netf, fdepth, thresh):
     """
     From a raster of depths this subroutine finds nearest depth to every river pixel in grid
     """
@@ -303,4 +310,4 @@ def near(ddsx, ddsy, XA):
 
 
 if __name__ == '__main__':
-    getdepths(sys.argv[1:])
+    getdepths_shell(sys.argv[1:])

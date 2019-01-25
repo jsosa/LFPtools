@@ -3,4 +3,4 @@
 import sys
 from lfptools import getbankelevs
 
-getbankelevs.getbankelevs(sys.argv[1:])
+getbankelevs.getbankelevs_shell(sys.argv[1:])

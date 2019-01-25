@@ -3,4 +3,4 @@
 import sys
 from lfptools import fixelevs
 
-fixelevs.fixelevs(sys.argv[1:])
+fixelevs.fixelevs_shell(sys.argv[1:])

@@ -3,4 +3,4 @@
 import sys
 from lfptools import getbedelevs
 
-getbedelevs.getbedelevs(sys.argv[1:])
+getbedelevs.getbedelevs_shell(sys.argv[1:])

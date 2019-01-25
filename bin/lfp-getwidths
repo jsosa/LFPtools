@@ -3,4 +3,4 @@
 import sys
 from lfptools import getwidths
 
-getwidths.getwidths(sys.argv[1:])
+getwidths.getwidths_shell(sys.argv[1:])

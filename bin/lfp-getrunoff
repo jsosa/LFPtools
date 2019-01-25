@@ -3,4 +3,4 @@
 import sys
 from lfptools import getrunoff
 
-getrunoff.getrunoff(sys.argv[1:])
+getrunoff.getrunoff_shell(sys.argv[1:])

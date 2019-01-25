@@ -17,7 +17,7 @@ from osgeo import osr
 from sklearn import linear_model
 
 
-def getslopes(argv):
+def getslopes_shell(argv):
 
     myhelp = '''
 LFPtools v0.1
@@ -67,7 +67,11 @@ step = steps to count, upstream and downstream
     proj = str(config.get('getslopes', 'proj'))
     step = int(config.get('getslopes', 'step'))
 
-    print("    runnning get_slopes.py...")
+    getslopes(source,output,netf,recf,proj,step)
+
+def getslopes(source,output,netf,recf,proj,step):
+
+    print("    runnning getslopes.py...")
 
     # Reading XXX_rec.csv file
     rec = pd.read_csv(recf)
@@ -196,4 +200,4 @@ def calc_dis_xy(x, y):
 
 
 if __name__ == '__main__':
-    getslopes(sys.argv[1:])
+    getslopes_shell(sys.argv[1:])

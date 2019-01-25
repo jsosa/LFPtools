@@ -17,7 +17,7 @@ from scipy.ndimage import distance_transform_edt
 from scipy.spatial.distance import cdist
 
 
-def getbankelevs(argv):
+def getbankelevs_shell(argv):
 
     myhelp = '''
 LFPtools v0.1
@@ -70,15 +70,14 @@ hrdemf   = High resolution DEM
     except:
         pass
 
-    try:
-        hrrivf = str(config.get('getbankelevs', 'hrrivf'))
-    except:
-        pass
-
     proj = str(config.get('getbankelevs', 'proj'))
     method = str(config.get('getbankelevs', 'method'))
     hrnodata = np.float64(config.get('getbankelevs', 'hrnodata'))
     thresh = np.float64(config.get('getbankelevs', 'thresh'))
+
+    getbankelevs(output,netf,hrdemf,proj,method,hrnodata,thresh,outlier)
+
+def getbankelevs(output,netf,hrdemf,proj,method,hrnodata,thresh,outlier):
 
     print("    running getbankelevs.py...")
 
@@ -106,13 +105,6 @@ hrdemf   = High resolution DEM
         dem, dem_geo = gdalutils.clip_raster(hrdemf, xmin, ymin, xmax, ymax)
         ddem = np.ma.masked_where(dem == hrnodata, dem)
 
-        try:
-            riv, riv_geo = gdalutils.clip_raster(
-                hrrivf, xmin, ymin, xmax, ymax)
-            rriv = riv
-        except:
-            pass
-
         if method == 'near':
             nodata = dem_geo[11]
             dfdem = gdalutils.array_to_pandas(dem, dem_geo, nodata, 'gt')
@@ -136,12 +128,6 @@ hrdemf   = High resolution DEM
             if outlier == "yes":
                 ddem = check_outlier(dem, ddem, hrnodata, 3.5)
             elev = ddem.min()
-
-        elif method == 'avgrivpixel':
-            elev = avgrivpixel(ddem, rriv)
-
-        elif method == 'avgedgpixel':
-            elev = avgedgpixel(ddem, rriv)
 
         # Write final file in a shapefile
 
@@ -238,7 +224,7 @@ def check_outlier(dem, ddem, hrnodata, thresh):
     arr = np.where(chk == True)
     if arr[0].size > 0:
         dem1 = dem.reshape(-1, 1)
-        dem1_tmp = np.copy(dem1)
+        # dem1_tmp = np.copy(dem1)
         dem1[arr[0]] = hrnodata
         dem2 = dem1.reshape(shape)
         ddem = np.ma.masked_where(dem2 == hrnodata, dem2)
@@ -288,4 +274,4 @@ def is_outlier(points, thresh=3.5):
 
 
 if __name__ == '__main__':
-    getbankelevs(sys.argv[1:])
+    getbankelevs_shell(sys.argv[1:])

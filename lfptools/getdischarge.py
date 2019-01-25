@@ -16,7 +16,7 @@ from pyproj import Proj
 from pyproj import transform
 
 
-def getdischarge(argv):
+def getdischarge_shell(argv):
 
     myhelp = '''
 LFPtools v0.1
@@ -64,6 +64,10 @@ date2  = End date e.g. 1990-01-30
     output = str(config.get('getdischarge', 'output'))
     date1 = str(config.get('getdischarge', 'date1'))
     date2 = str(config.get('getdischarge', 'date2'))
+
+    getdischarge(ncf,ncproj,infshp,proj,output,date1,date2)
+
+def getdischarge(ncf,ncproj,infshp,proj,output,date1,date2):
 
     print("    running getdischarge.py...")
 
@@ -145,4 +149,4 @@ def find_nearest(ncf, ncproj, lon, lat, proj):
 
 
 if __name__ == '__main__':
-    getdischarge(sys.argv[1:])
+    getdischarge_shell(sys.argv[1:])

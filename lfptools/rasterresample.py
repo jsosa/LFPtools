@@ -14,7 +14,7 @@ import gdalutils
 from osgeo import osr
 
 
-def rasterresample(argv):
+def rasterresample_shell(argv):
 
     myhelp = '''
 LFPtools v0.1
@@ -68,6 +68,10 @@ output   = Output file, GeoTIFF output
     thresh = np.float64(config.get('rasterresample', 'thresh'))
     nproc = np.float64(config.get('rasterresample', 'nproc')
                        )  # number of cpus to use
+
+    rasterresample(method,demf,netf,output,outlier,hrnodata,thresh,nproc)
+
+def rasterresample(method,demf,netf,output,outlier,hrnodata,thresh,nproc):
 
     print("    running rasterresample.py...")
 
@@ -184,7 +188,7 @@ def check_outlier(dem, ddem, hrnodata, thresh):
     arr = np.where(chk == True)
     if arr[0].size > 0:
         dem1 = dem.reshape(-1, 1)
-        dem1_tmp = np.copy(dem1)
+        # dem1_tmp = np.copy(dem1)
         dem1[arr[0]] = hrnodata
         dem2 = dem1.reshape(shape)
         ddem = np.ma.masked_where(dem2 == hrnodata, dem2)
@@ -234,4 +238,4 @@ def is_outlier(points, thresh=3.5):
 
 
 if __name__ == '__main__':
-    rasterresample(sys.argv[1:])
+    rasterresample_shell(sys.argv[1:])

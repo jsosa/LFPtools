@@ -3,4 +3,4 @@
 import sys
 from lfptools import getslopes
 
-getslopes.getslopes(sys.argv[1:])
+getslopes.getslopes_shell(sys.argv[1:])

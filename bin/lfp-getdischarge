@@ -3,4 +3,4 @@
 import sys
 from lfptools import getdischarge
 
-getdischarge.getdischarge(sys.argv[1:])
+getdischarge.getdischarge_shell(sys.argv[1:])

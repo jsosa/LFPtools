@@ -16,7 +16,7 @@ from lfptools import misc_utils
 from osgeo import osr
 
 
-def getwidths(argv):
+def getwidths_shell(argv):
 
     myhelp = '''
 LFPtools v0.1
@@ -62,6 +62,10 @@ fwidth = Source width file path GDAL format
     fwidth = str(config.get('getwidths', 'fwidth'))
     output = str(config.get('getwidths', 'output'))
     thresh = np.float64(config.get('getwidths', 'thresh'))
+
+    getwidths(recf,netf,proj,fwidth,output,thresh)
+
+def getwidths(recf,netf,proj,fwidth,output,thresh):
 
     print("    running getwidths.py...")
 
@@ -138,4 +142,4 @@ fwidth = Source width file path GDAL format
 
 
 if __name__ == '__main__':
-    getwidths(sys.argv[1:])
+    getwidths_shell(sys.argv[1:])
