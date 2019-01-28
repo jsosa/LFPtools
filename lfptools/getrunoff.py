@@ -65,7 +65,7 @@ def getrunoff(discsv,output):
     res = pd.DataFrame()
     for name, group in grouped:
         # Select only date columns
-        diffgroups = group[[i for i in df.columns if i[0] == '1']].diff()
+        diffgroups = group[[i for i in df.columns if (i[0] == '1') | (i[0] == '2')]].diff()
         res = pd.concat([res, diffgroups])
     df1 = pd.concat([df[['link', 'x', 'y', 'near_x', 'near_y']], res], axis=1)
 
