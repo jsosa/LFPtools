@@ -178,6 +178,14 @@ def write_bci(bcilfp, runcsv):
             y = str(runi[i].loc['y'])
             n = 'in' + str(i)
             f.write(t + ' ' + x + ' ' + y + ' ' + 'QVAR' + ' ' + n + '\n')
+    
+    # Writing other bundary conditions (eg. wall)
+
+    with open(bcilfp,'a') as f:
+        f.write('N -9999 9999 FREE' + '\n')
+        f.write('S -9999 9999 FREE' + '\n')
+        f.write('E -9999 9999 FREE' + '\n')
+        f.write('W -9999 9999 FREE' + '\n')
 
 
 def write_ascii(dembnktif_1D, wdttif, bedtif, dembnktif):
