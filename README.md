@@ -55,12 +55,12 @@ docker run --rm -it jsosa/dkr-lfptools
 Programs run by reading input parameters from a configuration file `config.txt` via `-i` option after the tool's name, in the terminal:
 
 ```bash
->> lfp-getwidhts -i config.txt
+$ lfp-getwidhts -i config.txt
 ```
 
 Input parameters in the configuration file for each tool can be obtained via `-h` option after the tool name:
 
-```shell
+```bash
 $ lfp-getwidhts -h
 
 LFPtools v0.1
