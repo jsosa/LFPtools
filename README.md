@@ -6,13 +6,13 @@
 
 ### Installation
 
-#### Via pip
+#### 1. Via pip
 Just run this line after installing all dependencies
 
 ``` pip install git+https://github.com/jsosa/LFPtools.git```
 
-#### Docker
-A second option is to download and run a Docker image which includes all dependecies and is ready to use
+#### 2. Docker
+To facilitate the installation process, we have published the [Dockerfile](https://github.com/jsosa/LFPtools/blob/master/docker/Dockerfile) so you can get `LFPtools` running in a docker container
 
 ```bash
 docker pull jsosa/dkr-lfptools
