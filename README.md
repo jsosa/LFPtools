@@ -50,6 +50,8 @@ docker run --rm -it jsosa/dkr-lfptools
 
 ### Usage
 
+#### 1. Via Command Line Interface CLI
+
 Programs run by reading input parameters from a configuration file `config.txt` via `-i` option after the tool's name, in the terminal:
 
 ```bash
@@ -59,7 +61,7 @@ Programs run by reading input parameters from a configuration file `config.txt` 
 Input parameters in the configuration file for each tool can be obtained via `-h` option after the tool name:
 
 ```shell
->> lfp-getwidhts -h
+$ lfp-getwidhts -h
 
 LFPtools v0.1
 
@@ -73,7 +75,7 @@ Retrieve river widths from a data set
 
 Usage
 -----
->> lfp-getwidths -i config.txt
+$ lfp-getwidths -i config.txt
 
 Content in config.txt
 ---------------------
@@ -85,4 +87,6 @@ netf   = Target mask file path
 proj   = Output projection in Proj4 format
 fwidth = Source width file path GDAL format
 ```
+#### 2. Within a Python environment
 
+To be filled..
