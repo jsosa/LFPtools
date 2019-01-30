@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
 import sys
-from lfptools import rasterresample
+from lfptools.rasterresample import rasterresample_shell
 
-rasterresample.rasterresample_shell(sys.argv[1:])
+rasterresample_shell(sys.argv[1:])
