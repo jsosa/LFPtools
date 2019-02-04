@@ -89,4 +89,8 @@ fwidth = Source width file path GDAL format
 ```
 #### 2. Within a Python environment
 
-To be filled..
+LFPtools can be imported within Python using
+
+```python
+import lfptools as lfp
+```
