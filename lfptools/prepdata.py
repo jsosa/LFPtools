@@ -50,7 +50,6 @@ def prepdata(argv):
     dem : Any GDAL format (e.g. .tif, .vrt) containing DEM info
     acc : Any GDAL format (e.g. .tif, .vrt) containing accumulation info
     dir : Any GDAL format (e.g. .tif, .vrt) containing flow direction info
-    wth : Any GDAL format (e.g. .tif, .vrt) containing river width info
     thresh : Threshold to mask flow accumulation in KM**2
     streamnet : Calculate tree and coord files <yes/no>
 
@@ -84,7 +83,6 @@ def prepdata(argv):
     strn_ord30d8.tif
     strn_tree30d4.txt
     strn_tree30d8.txt
-    wth3.tif
     """
 
     opts, args = getopt.getopt(argv, "i:")
@@ -100,7 +98,6 @@ def prepdata(argv):
     _dem = str(config.get('prepdata', 'dem'))
     _acc = str(config.get('prepdata', 'acc'))
     _dir = str(config.get('prepdata', 'dir'))
-    _wth = str(config.get('prepdata', 'wth'))
     nproc = str(config.get('prepdata', 'nproc'))
     thresh = np.float64(config.get('prepdata', 'thresh'))
     streamnet = str(config.get('prepdata', 'streamnet'))
@@ -130,7 +127,6 @@ def prepdata(argv):
 
     # List of files generated
     dem3tif = './'+out+'/dem3.tif'
-    wth3tif = './'+out+'/wth3.tif'
     dir3tif = './'+out+'/dir3.tif'
 
     dir3tau = './'+out+'/dir3tau.tif'
@@ -187,11 +183,9 @@ def prepdata(argv):
     are3tif = './'+out+'/area3.tif'
     are30tif = './'+out+'/area30.tif'
 
-    # Clipping DEM and river width .vrt files
+    # Clipping DEM .vrt files
     subprocess.call(["gdalwarp", "-ot", "Float32", "-te", str(xmin), str(ymin), str(xmax),
                      str(ymax), "-overwrite", "-dstnodata", "-9999", "-co", "BIGTIFF=YES", _dem, dem3tif])
-    subprocess.call(["gdalwarp", "-ot", "Float32", "-te", str(xmin), str(ymin), str(xmax),
-                     str(ymax), "-overwrite", "-dstnodata", "-9999", "-co", "BIGTIFF=YES", _wth, wth3tif])
 
     if res == 3:
 

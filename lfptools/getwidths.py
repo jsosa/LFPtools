@@ -63,9 +63,10 @@ fwidth = Source width file path GDAL format
     output = str(config.get('getwidths', 'output'))
     thresh = np.float64(config.get('getwidths', 'thresh'))
 
-    getwidths(recf,netf,proj,fwidth,output,thresh)
+    getwidths(recf, netf, proj, fwidth, output, thresh)
 
-def getwidths(recf,netf,proj,fwidth,output,thresh):
+
+def getwidths(recf, netf, proj, fwidth, output, thresh):
 
     print("    running getwidths.py...")
 
@@ -77,13 +78,6 @@ def getwidths(recf,netf,proj,fwidth,output,thresh):
     # Reading XXX_rec.csv file
     rec = pd.read_csv(recf)
 
-    # Reading width source file
-    dat = gdalutils.get_data(fwidth)
-    geo = gdalutils.get_geo(fwidth)
-    iy, ix = np.where(dat > 30)
-    xdat = geo[8][ix]
-    ydat = geo[9][iy]
-
     # Get nearest width from datasource
     # Uses Euclidean distance to find nearest point in source
     # `try` included since it may happen that the width database doesn't
@@ -91,13 +85,21 @@ def getwidths(recf,netf,proj,fwidth,output,thresh):
     # a 30 m width
     width = []
     for x, y in zip(rec['lon'], rec['lat']):
+
+        xmin = x - thresh
+        ymin = y - thresh
+        xmax = x + thresh
+        ymax = y + thresh
+
+        dat, geo = gdalutils.clip_raster(fwidth, xmin, ymin, xmax, ymax)
+        iy, ix = np.where(dat > 30)
+        xdat = geo[8][ix]
+        ydat = geo[9][iy]
+
         try:
             dis, ind = misc_utils.near_euc(xdat, ydat, (x, y))
-            if dis <= thresh:
-                val = dat[iy[ind], ix[ind]]
-                width.append(val)
-            else:
-                width.append(np.nan)
+            val = dat[iy[ind], ix[ind]]
+            width.append(val)
         except ValueError:
             width.append(np.nan)
 
