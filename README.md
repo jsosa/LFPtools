@@ -1,10 +1,12 @@
 [![DOI](https://zenodo.org/badge/114779043.svg)](https://zenodo.org/badge/latestdoi/114779043)
 
+
 # LFPtools
 
 `LFPtools` is an open-source Python CLI package which encompass most methods commonly used to prepare input data for large scale flood inundation studies using the [LISFLOOD-FP](http://www.bristol.ac.uk/geography/research/hydrology/models/lisflood/) hydrodynamic model.
 
 ### Installation
+***
 
 #### 1. Via pip
 Just run this line after installing all dependencies
@@ -20,6 +22,7 @@ docker run --rm -it jsosa/dkr-lfptools
 ```
 
 ### Dependencies
+***
 
 - [Pandas](https://pandas.pydata.org/)
 - [Geopandas](http://geopandas.org/)
@@ -29,6 +32,7 @@ docker run --rm -it jsosa/dkr-lfptools
 - [gdalutils](https://github.com/jsosa/gdalutils.git)
 
 ### Description of tools
+***
 
 **lfp-getdepths:** Get river depths, three methods availables: 1) get depths from a raster of depths 2) get depths by using hydraulic geometry equation depth = r * width ^ p and 3) get depths by using simplified mannings equation
 
@@ -49,6 +53,7 @@ docker run --rm -it jsosa/dkr-lfptools
 **lfp-rasterresample:** Resample a DEM by upscaling. It applies a reductions method like mean, min or meanmin. Outlier detection is also available before running the reduction method. `nproc` option defines number of cores to be used when resampling.
 
 ### Usage
+***
 
 #### 1. Via Command Line Interface CLI
 
@@ -94,3 +99,8 @@ LFPtools can be imported within Python using
 ```python
 import lfptools as lfp
 ```
+
+### License
+***
+
+LFPtools is licensed under a 3-clause BSD style license - see the [``LICENSE``](https://github.com/jsosa/LFPtools/blob/master/LICENSE) file.
