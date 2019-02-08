@@ -123,7 +123,7 @@ def write_evap(evaplfp, t):
         time = np.arange(t)  # daily values
         f.write(str(t)+"    "+"days"+"\n")
         for i in range(t):
-            f.write("%12.3f    %d" % (5, time[i])+"\n")
+            f.write("%12.3f    %d" % (10, time[i])+"\n")
 
 
 def write_bdy(bdylfp, runcsv, t):
@@ -269,8 +269,8 @@ def write_par(parlfp, bcilfp, bdylfp, evaplfp, gaugelfp, stagelfp, dembnktif, wd
         file.write("initial_tstep  " + "10.0" + "\n")
         file.write("massint        " + "86400.0" + "\n")
         file.write("saveint        " + "86400.0" + "\n")
-        file.write("fpfric         " + "0.05" + "\n")
-        file.write("SGCn           " + "0.05" + "\n")
+        file.write("fpfric         " + "0.06" + "\n")
+        file.write("SGCn           " + "0.035" + "\n")
         if os.path.isfile(bcilfp):
             file.write("bcifile        " + os.path.basename(bcilfp) + "\n")
         if os.path.isfile(bdylfp):
