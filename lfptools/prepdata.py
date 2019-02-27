@@ -506,8 +506,8 @@ def read_coord_taudem(coordf):
 def calculate_area(filename, output):
 
     geo = gdalutils.get_geo(filename)
-    nx = np.int16(geo[4])
-    ny = np.int16(geo[5])
+    nx = np.int32(geo[4])
+    ny = np.int32(geo[5])
     resx = np.float32(geo[6])
     resy = np.float32(geo[7])
     x = np.float32(geo[8])

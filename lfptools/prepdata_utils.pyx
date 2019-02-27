@@ -131,9 +131,9 @@ def cy_d82d4(np.int16_t[:,:] data, np.int16_t nodata):
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def calc_area(np.int16_t nx, np.int16_t ny, np.float32_t resx, np.float32_t resy, np.float32_t[:] x, np.float32_t[:] y):
+def calc_area(np.int32_t nx, np.int32_t ny, np.float32_t resx, np.float32_t resy, np.float32_t[:] x, np.float32_t[:] y):
 
-    cdef np.int16_t i,j
+    cdef np.int32_t i,j
     cdef np.float32_t xx,yy,x1,x2,y1,y2
     cdef np.float32_t[:,:] area = np.zeros((ny,nx),dtype=np.float32)
 
