@@ -94,21 +94,22 @@ def split(argv):
 
     print("    running split.py...")
 
-    # Loading data
-    catarr = gdalutils.get_data(cattif)
-
     # Clip input maps per catchment
     if basnum == "all":
+        # Loading data
+        catarr = gdalutils.get_data(cattif)
+
         # Loop over all catchment numbers
         # Catchments should be numbered and > 0
         for nc in np.unique(catarr[catarr > 0]):
             basinsplit(nc, outdir, cattif, demtif, acctif, nettif,
                        wthtif, dirtif, aretif, otltif, tretxt, cootxt)
     else:
-        # Process a single catchment
+        # Process a single catchments
         b = basnum.split(',')
-        for nc in np.arange(int(b[0]), int(b[1])):
-            basinsplit(nc, outdir, cattif, demtif, acctif, nettif,
+        for nc in b:
+            print('processing basin number: ' + nc)
+            basinsplit(int(nc), outdir, cattif, demtif, acctif, nettif,
                        wthtif, dirtif, aretif, otltif, tretxt, cootxt)
 
 
