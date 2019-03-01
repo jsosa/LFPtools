@@ -59,15 +59,20 @@ date2  = End date e.g. 1990-01-30
 
     ncf = str(config.get('getdischarge', 'ncf'))
     ncproj = str(config.get('getdischarge', 'ncproj'))
+    ncxlabel = str(config.get('getdischarge', 'ncxlabel'))
+    ncylabel = str(config.get('getdischarge', 'ncylabel'))
+    ncdatlbl = str(config.get('getdischarge', 'ncdatlbl'))
     infshp = str(config.get('getdischarge', 'infshp'))
     proj = str(config.get('getdischarge', 'proj'))
     output = str(config.get('getdischarge', 'output'))
     date1 = str(config.get('getdischarge', 'date1'))
     date2 = str(config.get('getdischarge', 'date2'))
 
-    getdischarge(ncf,ncproj,infshp,proj,output,date1,date2)
+    getdischarge(ncf, ncproj, ncxlabel, ncylabel, ncdatlbl,
+                 infshp, proj, output, date1, date2)
 
-def getdischarge(ncf,ncproj,infshp,proj,output,date1,date2):
+
+def getdischarge(ncf, ncproj, ncxlabel, ncylabel, ncdatlbl, infshp, proj, output, date1, date2):
 
     print("    running getdischarge.py...")
 
@@ -78,7 +83,8 @@ def getdischarge(ncf,ncproj,infshp,proj,output,date1,date2):
     def _pd_find_nearest(row):
         x = row.x
         y = row.y
-        near_x, near_y = find_nearest(ncf, ncproj, x, y, proj)
+        near_x, near_y = find_nearest(
+            ncf, ncproj, ncxlabel, ncylabel, x, y, proj)
         row['near_x'] = near_x
         row['near_y'] = near_y
         return row
@@ -90,7 +96,8 @@ def getdischarge(ncf,ncproj,infshp,proj,output,date1,date2):
     for i in range(len(df)):
         near_x = df.iloc[i]['near_x']
         near_y = df.iloc[i]['near_y']
-        tserie = get_data(ncf, near_x, near_y, date1, date2)
+        tserie = get_data(ncf, ncdatlbl, ncxlabel, ncylabel,
+                          near_x, near_y, date1, date2)
         dis = tserie
         dis['index'] = i
         dis['columns'] = dis.index.astype(str)
@@ -104,7 +111,7 @@ def getdischarge(ncf,ncproj,infshp,proj,output,date1,date2):
     df1.to_csv(output)
 
 
-def get_data(ncf, x, y, date1='1990-01-01', date2='2014-12-31'):
+def get_data(ncf, ncdatlbl, ncxlabel, ncylabel, x, y, date1='1990-01-01', date2='2014-12-31'):
     """
     Retrieve array based on nearest x,y coordinates
 
@@ -114,13 +121,13 @@ def get_data(ncf, x, y, date1='1990-01-01', date2='2014-12-31'):
 
     dat = xr.open_dataset(ncf)
     mytim = dat.sel(time=slice(date1, date2))
-    mydis = mytim.sel(x=x, y=y, method='nearest')
-    df = mydis.dis.to_pandas().to_frame()
+    mydis = mytim.sel({ncxlabel: x, ncylabel: y}, method="nearest")
+    df = mydis[ncdatlbl].to_pandas().to_frame()
     df.columns = ['discharge']
     return df
 
 
-def find_nearest(ncf, ncproj, lon, lat, proj):
+def find_nearest(ncf, ncproj, ncxlabel, ncylabel, lon, lat, proj):
     """
     Find nearest point in discharge dataset based on inflow points
 
@@ -141,9 +148,9 @@ def find_nearest(ncf, ncproj, lon, lat, proj):
     x, y = transform(crs_wgs84, crs_nc, lon, lat)
 
     # Retrieve near x and y
-    near = dat.sel(x=x, y=y, method="nearest")
-    near_x = np.float64(near.x.values)
-    near_y = np.float64(near.y.values)
+    near = dat.sel({ncxlabel: x, ncylabel: y}, method="nearest")
+    near_x = np.float64(near[ncxlabel].values)
+    near_y = np.float64(near[ncylabel].values)
 
     return near_x, near_y
 
