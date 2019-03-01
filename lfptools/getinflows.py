@@ -60,6 +60,7 @@ output = Output file
 
     ncf = str(config.get('getinflows', 'ncf'))
     ncproj = str(config.get('getinflows', 'ncproj'))
+    thresh_dis = float(config.get('getinflows', 'thresh_dis'))
     recf = str(config.get('getinflows', 'recf'))
     proj = str(config.get('getinflows', 'proj'))
     output = str(config.get('getinflows', 'output'))
@@ -67,11 +68,9 @@ output = Output file
     getinflows(ncf, ncproj, recf, proj, output)
 
 
-def getinflows(ncf, ncproj, recf, proj, output):
+def getinflows(ncf, ncproj, thresh_dis, recf, proj, output):
 
     print("    running getinflows.py...")
-
-    fname = output
 
     # Reading XXX_rec.csv file
     rec = pd.read_csv(recf)
@@ -93,7 +92,7 @@ def getinflows(ncf, ncproj, recf, proj, output):
 
         for j in range(len(lons)):
             nearx1, neary1, ncmean, ncdis = find_nearest_mean_mask(
-                ncf, ncproj, lons[j], lats[j], proj)
+                ncf, ncproj, lons[j], lats[j], proj, thresh_dis)
             if ncmean != None:
                 mymean.append(ncmean)
                 mydis.append(ncdis)
@@ -155,7 +154,7 @@ def getinflows(ncf, ncproj, recf, proj, output):
         gdf.to_file(output, driver='GeoJSON')
 
 
-def find_nearest_mean_mask(ncf, ncproj, lon, lat, proj, thresh_mean=5, thresh_dis=2.5):
+def find_nearest_mean_mask(ncf, ncproj, lon, lat, proj, thresh_dis, thresh_mean=5):
     """
     Apply a threshold to the mean discharge
     Based on the thresholded map, find nearest value to lon, lat in a given perimiter and var threhsold
@@ -181,10 +180,10 @@ def find_nearest_mean_mask(ncf, ncproj, lon, lat, proj, thresh_mean=5, thresh_di
 
     # Calcualte distance to lat and lon point to every point in the dataframe
     vec = gu.haversine.haversine_array(np.array(df['lat'], dtype='float32'),
-                                       np.array(
-        df['lon'], dtype='float32'),
-        np.float32(lat),
-        np.float32(lon))
+                                       np.array(df['lon'], dtype='float32'),
+                                       np.float32(lat),
+                                       np.float32(lon))
+
     idx = np.argmin(vec)
     dis = gu.haversine.haversine(
         df.loc[idx, 'lat'], df.loc[idx, 'lon'], lat, lon)
