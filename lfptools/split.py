@@ -284,9 +284,21 @@ def connections(treef, coorf):
                 link = linkds
         return mylinks
 
+    def get_outlet_link():
+        for i in tree.frst_ds:
+            try:
+                tree.loc[i, 'frst_ds']
+            except KeyError:
+                val = i
+        tree.replace(val,-1,inplace=True)
+
     tree = misc_utils.read_tree(treef)
     coor = misc_utils.read_coord(coorf)
     tree.set_index('link_no', inplace=True)
+
+    # Get outlet link
+    # Allows to split basins in sub-basins
+    get_outlet_link()
 
     # Finding the number of downstream links for every link
     lnks = []
