@@ -121,9 +121,6 @@ def prepdata(argv):
     elif deg == 0.0008:
         res = 3
 
-	# Flag to override or not # PFU only set for 3s case
-    overwrite = False
-
     # Creating an output folder
     try:
         os.makedirs(out)
