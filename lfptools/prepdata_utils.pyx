@@ -96,37 +96,33 @@ def cy_d82d4(np.int16_t[:,:] data, np.int16_t nodata):
 
     for m in range(M):
         for n in range(N):
-            if data[m,n] == 8:
-                data[m,n] = 7
-                try:
-                    if (data[m+1,n] != 6) and (data[m+1,n] != 4) and (data[m+1,n] != 2):
-                        data[m+1,n] = 1
-                except IndexError:
-                    pass
+          if data[m,n] == 8:
+            data[m,n] = 7
+            try:
+              data[m+1,n] = 1
+            except:
+              pass
 
-            elif data[m,n] == 6:
-                data[m,n] = 7
-                try:
-                    if (data[m+1,n] != 8) and (data[m+1,n] != 4) and (data[m+1,n] != 2):
-                        data[m+1,n] = 5
-                except IndexError:
-                    pass
+          elif data[m,n] == 6:
+            data[m,n] = 7
+            try:
+              data[m+1,n] = 5
+            except:
+              pass
 
-            elif data[m,n] == 4:
-                data[m,n] = 3
-                try:
-                    if (data[m-1,n] != 8) and (data[m-1,n] != 6) and (data[m-1,n] != 2):
-                        data[m-1,n] = 5
-                except IndexError:
-                    pass
+          elif data[m,n] == 4:
+            data[m,n] = 3
+            try:
+              data[m-1,n] = 5
+            except:
+              pass
 
-            elif data[m,n] == 2:
-                data[m,n] = 3
-                try:
-                    if (data[m-1,n] != 8) and (data[m-1,n] != 6) and (data[m-1,n] != 4):
-                        data[m-1,n] = 1
-                except IndexError:
-                    pass
+          elif data[m,n] == 2:
+            data[m,n] = 3
+            try:
+              data[m-1,n] = 1
+            except:
+              pass
 
     cdef np.int16_t[:,:] net = np.ones((M,N),dtype=np.int16) * np.greater(data,0)
 
