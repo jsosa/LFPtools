@@ -102,14 +102,14 @@ def prepdata(argv):
     nproc = str(config.get('prepdata', 'nproc'))
     thresh = np.float64(config.get('prepdata', 'thresh'))
     streamnet = str(config.get('prepdata', 'streamnet'))
-    overwrite = config.get('prepdata', 'overwrite').lower=='True'.lower()
+    overwrite = config.get('prepdata', 'overwrite').lower()=='True'.lower()
     acc_area = config.get('prepdata', 'acc_area').lower()=='True'.lower()
 
     # Defining extent
-    xmin = te[0]
-    ymin = te[1]
-    xmax = te[2]
-    ymax = te[3]
+    xmin0 = te[0]
+    ymin0 = te[1]
+    xmax0 = te[2]
+    ymax0 = te[3]
 
     # Getting resolution in degrees
     geo = gdalutils.get_geo(_acc)
@@ -191,6 +191,14 @@ def prepdata(argv):
     are3tif = out+'/area3.tif'
     are30tif = out+'/area30.tif'
 
+    # Snap extent to match input tif grid cells
+    geo = gdalutils.get_geo(_dem)
+    # Geo has format [xmin, ymin, xmax, ymax, xn, yn, xres, yres, ....]
+    xmin = geo[0] + np.floor((xmin0 - geo[0])/geo[6])*geo[6]
+    ymin = geo[1] + np.floor((ymin0 - geo[1])/geo[7])*geo[7]
+    xmax = geo[2] + np.floor((xmax0 - geo[2])/geo[6])*geo[6]
+    ymax = geo[3] + np.floor((ymax0 - geo[3])/geo[7])*geo[7]
+
     # Clipping DEM .vrt files
     if not os.path.exists(dem3tif) or overwrite:
         subprocess.call(["gdalwarp", "-ot", "Float32", "-te", str(xmin), str(ymin), str(xmax),
@@ -200,6 +208,14 @@ def prepdata(argv):
     # 3s resolution case
     #
     if res == 3:
+
+        # Snap extent to match input tif grid cells
+        geo = gdalutils.get_geo(_dir)
+        # Geo has format [xmin, ymin, xmax, ymax, xn, yn, xres, yres, ....]
+        xmin = geo[0] + np.floor((xmin0 - geo[0])/geo[6])*geo[6]
+        ymin = geo[1] + np.floor((ymin0 - geo[1])/geo[7])*geo[7]
+        xmax = geo[2] + np.floor((xmax0 - geo[2])/geo[6])*geo[6]
+        ymax = geo[3] + np.floor((ymax0 - geo[3])/geo[7])*geo[7]
         if not os.path.exists(dir3tif) or overwrite:
             subprocess.call(["gdalwarp", "-te", str(xmin), str(ymin), str(xmax),
                          str(ymax), "-overwrite", "-co", "BIGTIFF=YES","-co",'COMPRESS=DEFLATE', _dir, dir3tif])
@@ -277,7 +293,13 @@ def prepdata(argv):
     # 30s resolution case
     #
     elif res == 30:
-
+        # Snap extent to match input tif grid cells
+        geo = gdalutils.get_geo(_dir)
+        # Geo has format [xmin, ymin, xmax, ymax, xn, yn, xres, yres, ....]
+        xmin = geo[0] + np.floor((xmin0 - geo[0])/geo[6])*geo[6]
+        ymin = geo[1] + np.floor((ymin0 - geo[1])/geo[7])*geo[7]
+        xmax = geo[2] + np.floor((xmax0 - geo[2])/geo[6])*geo[6]
+        ymax = geo[3] + np.floor((ymax0 - geo[3])/geo[7])*geo[7]
         if not os.path.exists(dir30tif) or overwrite:
             subprocess.call(["gdalwarp", "-te", str(xmin), str(ymin),
                          str(xmax), str(ymax), "-overwrite", _dir, dir30tif])
