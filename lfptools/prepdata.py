@@ -6,6 +6,7 @@
 
 import os
 import sys
+import shutil
 import getopt
 import subprocess
 import configparser
@@ -90,7 +91,7 @@ def prepdata(argv):
         if o == "-i":
             inifile = a
 
-    config = configparser.SafeConfigParser()
+    config = configparser.SafeConfigParser({'overwrite':False,'acc_area':False})
     config.read(inifile)
 
     te = np.float64(config.get('prepdata', 'te').split(','))
@@ -101,6 +102,8 @@ def prepdata(argv):
     nproc = str(config.get('prepdata', 'nproc'))
     thresh = np.float64(config.get('prepdata', 'thresh'))
     streamnet = str(config.get('prepdata', 'streamnet'))
+    overwrite = str(config.get('prepdata', 'overwrite'))
+    acc_area = str(config.get('prepdata', 'acc_area'))
 
     # Defining extent
     xmin = te[0]
@@ -118,6 +121,9 @@ def prepdata(argv):
     elif deg == 0.0008:
         res = 3
 
+	# Flag to override or not # PFU only set for 3s case
+    overwrite = False
+
     # Creating an output folder
     try:
         os.makedirs(out)
@@ -126,166 +132,226 @@ def prepdata(argv):
             raise
 
     # List of files generated
-    dem3tif = './'+out+'/dem3.tif'
-    dir3tif = './'+out+'/dir3.tif'
+    dem3tif = out+'/dem3.tif'
+    dir3tif = out+'/dir3.tif'
 
-    dir3tau = './'+out+'/dir3tau.tif'
-    dir3taud4 = './'+out+'/dir3taud4.tif'
-    dir3tau_mask = './'+out+'/dir3tau_mask.tif'
-    dir3tau_maskd4 = './'+out+'/dir3tau_maskd4.tif'
-    dir30tif = './'+out+'/dir30.tif'
-    dir30tau = './'+out+'/dir30tau.tif'
-    dir30taud4 = './'+out+'/dir30taud4.tif'
-    dir30tau_mask = './'+out+'/dir30tau_mask.tif'
-    dir30tau_maskd4 = './'+out+'/dir30tau_maskd4.tif'
+    dir3tau = out+'/dir3tau.tif'
+    dir3taud4 = out+'/dir3taud4.tif'
+    dir3tau_mask = out+'/dir3tau_mask.tif'
+    dir3tau_maskd4 = out+'/dir3tau_maskd4.tif'
+    dir30tif = out+'/dir30.tif'
+    dir30tau = out+'/dir30tau.tif'
+    dir30taud4 = out+'/dir30taud4.tif'
+    dir30tau_mask = out+'/dir30tau_mask.tif'
+    dir30tau_maskd4 = out+'/dir30tau_maskd4.tif'
 
-    _acc3tif = './'+out+'/acc3_.tif'
-    acc3tif = './'+out+'/acc3.tif'
-    _acc30tif = './'+out+'/acc30_.tif'
-    acc30tif = './'+out+'/acc30.tif'
+    _acc3tif = out+'/acc3_.tif'
+    acc3tif = out+'/acc3.tif'
+    _acc30tif = out+'/acc30_.tif'
+    acc30tif = out+'/acc30.tif'
+    # _acc3tif is accumulation in grid cells, acc3tif is accumulation in area
+    # If input acc is an area, override _acc3tif by the area version (then dont multiply by area)
+    if acc_area:
+        _acc3tif = acc3tif
+        _acc03tif = acc30tif
 
-    net3tif = './'+out+'/net3.tif'
-    net30tif = './'+out+'/net30.tif'
-    net3tifd4 = './'+out+'/net3d4.tif'
-    net30tifd4 = './'+out+'/net30d4.tif'
+    net3tif = out+'/net3.tif'
+    net30tif = out+'/net30.tif'
+    net3tifd4 = out+'/net3d4.tif'
+    net30tifd4 = out+'/net30d4.tif'
 
-    strn_ord3d8 = './'+out+'/strn_ord3d8.tif'
-    strn_tree3d8 = './'+out+'/strn_tree3d8.txt'
-    strn_coord3d8 = './'+out+'/strn_coord3d8.txt'
-    stren_net3d8 = './'+out+'/stren_net3d8.out'
-    stren_w3d8 = './'+out+'/stren_w3d8.tif'
-    strn_ord3d4 = './'+out+'/strn_ord3d4.tif'
-    strn_tree3d4 = './'+out+'/strn_tree3d4.txt'
-    strn_coord3d4 = './'+out+'/strn_coord3d4.txt'
-    stren_net3d4 = './'+out+'/stren_net3d4.out'
-    stren_w3d4 = './'+out+'/stren_w3d4.tif'
-    strn_ord30d8 = './'+out+'/strn_ord30d8.tif'
-    strn_tree30d8 = './'+out+'/strn_tree30d8.txt'
-    strn_coord30d8 = './'+out+'/strn_coord30d8.txt'
-    stren_net30d8 = './'+out+'/stren_net30d8.out'
-    stren_w30d8 = './'+out+'/stren_w30d8.tif'
-    strn_ord30d4 = './'+out+'/strn_ord30d4.tif'
-    strn_tree30d4 = './'+out+'/strn_tree30d4.txt'
-    strn_coord30d4 = './'+out+'/strn_coord30d4.txt'
-    stren_net30d4 = './'+out+'/stren_net30d4.out'
-    stren_w30d4 = './'+out+'/stren_w30d4.tif'
+    strn_ord3d8 = out+'/strn_ord3d8.tif'
+    strn_tree3d8 = out+'/strn_tree3d8.txt'
+    strn_coord3d8 = out+'/strn_coord3d8.txt'
+    stren_net3d8 = out+'/stren_net3d8.out'
+    stren_w3d8 = out+'/stren_w3d8.tif'
+    strn_ord3d4 = out+'/strn_ord3d4.tif'
+    strn_tree3d4 = out+'/strn_tree3d4.txt'
+    strn_coord3d4 = out+'/strn_coord3d4.txt'
+    stren_net3d4 = out+'/stren_net3d4.out'
+    stren_w3d4 = out+'/stren_w3d4.tif'
+    strn_ord30d8 = out+'/strn_ord30d8.tif'
+    strn_tree30d8 = out+'/strn_tree30d8.txt'
+    strn_coord30d8 = out+'/strn_coord30d8.txt'
+    stren_net30d8 = out+'/stren_net30d8.out'
+    stren_w30d8 = out+'/stren_w30d8.tif'
+    strn_ord30d4 = out+'/strn_ord30d4.tif'
+    strn_tree30d4 = out+'/strn_tree30d4.txt'
+    strn_coord30d4 = out+'/strn_coord30d4.txt'
+    stren_net30d4 = out+'/stren_net30d4.out'
+    stren_w30d4 = out+'/stren_w30d4.tif'
 
-    out3shp = './'+out+'/out3.shp'
-    out3shpd4 = './'+out+'/out3d4.shp'
-    out30shp = './'+out+'/out30.shp'
-    out30shpd4 = './'+out+'/out30d4.shp'
+    out3shp = out+'/out3.shp'
+    out3shpd4 = out+'/out3d4.shp'
+    out30shp = out+'/out30.shp'
+    out30shpd4 = out+'/out30d4.shp'
 
-    cat3tif = './'+out+'/basins3.tif'
-    cat3tifd4 = './'+out+'/basins3d4.tif'
-    cat30tif = './'+out+'/basins30.tif'
-    cat30tifd4 = './'+out+'/basins30d4.tif'
+    cat3tif = out+'/basins3.tif'
+    cat3tifd4 = out+'/basins3d4.tif'
+    cat30tif = out+'/basins30.tif'
+    cat30tifd4 = out+'/basins30d4.tif'
 
-    are3tif = './'+out+'/area3.tif'
-    are30tif = './'+out+'/area30.tif'
+    are3tif = out+'/area3.tif'
+    are30tif = out+'/area30.tif'
 
     # Clipping DEM .vrt files
-    subprocess.call(["gdalwarp", "-ot", "Float32", "-te", str(xmin), str(ymin), str(xmax),
-                     str(ymax), "-overwrite", "-dstnodata", "-9999", "-co", "BIGTIFF=YES", _dem, dem3tif])
+    if not os.path.exists(dem3tif) or overwrite:
+        subprocess.call(["gdalwarp", "-ot", "Float32", "-te", str(xmin), str(ymin), str(xmax),
+                     str(ymax), "-overwrite", "-dstnodata", "-9999", "-co",'COMPRESS=DEFLATE',"-co", "BIGTIFF=YES", _dem, dem3tif])
 
+    ########################################################################################
+    # 3s resolution case
+    #
     if res == 3:
+        if not os.path.exists(dir3tif) or overwrite:
+            subprocess.call(["gdalwarp", "-te", str(xmin), str(ymin), str(xmax),
+                         str(ymax), "-overwrite", "-co", "BIGTIFF=YES","-co",'COMPRESS=DEFLATE', _dir, dir3tif])
 
-        subprocess.call(["gdalwarp", "-te", str(xmin), str(ymin), str(xmax),
-                         str(ymax), "-overwrite", "-co", "BIGTIFF=YES", _dir, dir3tif])
+        if not os.path.exists(_acc3tif) or overwrite:
+            subprocess.call(["gdalwarp", "-te", str(xmin), str(ymin), str(xmax),
+                         str(ymax), "-overwrite", "-co", "BIGTIFF=YES","-co",'COMPRESS=DEFLATE', _acc, _acc3tif])
 
-        subprocess.call(["gdalwarp", "-te", str(xmin), str(ymin), str(xmax),
-                         str(ymax), "-overwrite", "-co", "BIGTIFF=YES", _acc, _acc3tif])
+        if not os.path.exists(dir3tau) or overwrite:
+            print("converting directions into TAUDEM directions...")
+            directions_tau(dir3tif, dir3tau)
 
-        print("converting directions into TAUDEM directions...")
-        directions_tau(dir3tif, dir3tau)
+        if not os.path.exists(are3tif) or overwrite:
+            print("calculating area in extent...")
+            calculate_area(dir3tau, are3tif)
 
-        print("calculating area in extent...")
-        calculate_area(dir3tau, are3tif)
+         if not acc_area and (not os.path.exists(acc3tiff) or overwrite):
+            print("getting flow accumulation in km2...")
+            multiply_rasters(_acc3tif, are3tif, acc3tif)
 
-        print("getting flow accumulation in km2...")
-        multiply_rasters(_acc3tif, are3tif, acc3tif)
+        if not os.path.exists(net3tif) or overwrite:
+            print("thresholding accumulation to get river network...")
+            rasterthreshold(acc3tif, thresh, 'Int16', net3tif)
 
-        print("thresholding accumulation to get river network...")
-        rasterthreshold(acc3tif, thresh, 'Int16', net3tif)
+        if not os.path.exists(dir3tau_mask) or overwrite:
+            print("masking directions based on river network...")
+            rastermask(dir3tau, net3tif, "Int16", dir3tau_mask)
 
-        print("masking directions based on river network...")
-        rastermask(dir3tau, net3tif, "Int16", dir3tau_mask)
+        if not os.path.exists(out3shp) or overwrite:
+            print("writing outlets and inland depressions in shapefile...")
+            write_outlets(out3shp, dir3tau_mask)
 
-        print("writing outlets and inland depressions in shapefile...")
-        write_outlets(out3shp, dir3tau_mask)
-
-        print("writing basins file...")
-        subprocess.call(["gagewatershed", "-p", dir3tau,
+        if not os.path.exists(cat3tif) or overwrite:
+            print("writing basins file...")
+            subprocess.call(["gagewatershed", "-p", dir3tau,
                          "-gw", cat3tif, "-o", out3shp])
 
         if streamnet == 'yes':
-            subprocess.call(["mpiexec", "-n", nproc, "streamnet", "-fel", net3tif, "-p", dir3tau, "-ad8", acc3tif, "-src", net3tif, "-ord",
+            # Streamnet fails if stren_net exists so remove first
+            if os.path.exists(stren_net3d8) and overwrite: 
+                shutil.rmtree(stren_net3d8)
+            if not os.path.exists(stren_net3d8):
+                # PFU: input -fel = dem3tif for correct slope in output streamnet
+                subprocess.call(["mpiexec", "-n", nproc, "streamnet", "-fel", dem3tif, "-p", dir3tau, "-ad8", acc3tif, "-src", net3tif, "-ord",
                              strn_ord3d8, "-tree", strn_tree3d8, "-coord", strn_coord3d8, "-net", stren_net3d8, "-w", stren_w3d8, "-o", out3shp])
 
-        print("creating D4 river network...")
-        d82d4(dir3tau_mask, dir3tau_maskd4, net3tifd4)
+        if not os.path.exists(dir3tau_maskd4) or overwrite:
+            print("creating D4 river network...")
+            d82d4(dir3tau_mask, dir3tau_maskd4, net3tifd4)
 
-        print("writing D4 outlets and inland depression in shapefile")
-        write_outlets(out3shpd4, dir3tau_maskd4)
+        if not os.path.exists(out3shpd4) or overwrite:
+            print("writing D4 outlets and inland depression in shapefile")
+            write_outlets(out3shpd4, dir3tau_maskd4)
 
-        print("create flow directions map D4...")
-        create_dir_d4(dir3taud4, dir3tau, dir3tau_maskd4)
+        if not os.path.exists(dir3taud4) or overwrite:
+            print("create flow directions map D4...")
+            create_dir_d4(dir3taud4, dir3tau, dir3tau_maskd4)
 
-        print("writing basins file D4...")
-        subprocess.call(["gagewatershed", "-p", dir3taud4,
+        if not os.path.exists(cat3tifd4) or overwrite:
+            print("writing basins file D4...")
+            subprocess.call(["gagewatershed", "-p", dir3taud4,
                          "-gw", cat3tifd4, "-o", out3shpd4])
 
         if streamnet == 'yes':
-            subprocess.call(["mpiexec", "-n", nproc, "streamnet", "-fel", net3tifd4, "-p", dir3tau_maskd4, "-ad8", acc3tif, "-src", net3tifd4,
+            # Streamnet fails if stren_net exists so remove first
+            if os.path.exists(stren_net3d4) and overwrite: 
+                shutil.rmtree(stren_net3d4)
+            if not os.path.exists(stren_net3d4):
+                # PFU: input -fel = dem3tif for correct slope in output streamnet
+                subprocess.call(["mpiexec", "-n", nproc, "streamnet", "-fel", dem3tif, "-p", dir3tau_maskd4, "-ad8", acc3tif, "-src", net3tifd4,
                              "-ord", strn_ord3d4, "-tree", strn_tree3d4, "-coord", strn_coord3d4, "-net", stren_net3d4, "-w", stren_w3d4, "-o", out3shpd4])
 
+
+    ########################################################################################
+    # 30s resolution case
+    #
     elif res == 30:
 
-        subprocess.call(["gdalwarp", "-te", str(xmin), str(ymin),
+        if not os.path.exists(dir30tif) or overwrite:
+            subprocess.call(["gdalwarp", "-te", str(xmin), str(ymin),
                          str(xmax), str(ymax), "-overwrite", _dir, dir30tif])
 
-        subprocess.call(["gdalwarp", "-te", str(xmin), str(ymin), str(xmax),
+        if not os.path.exists(_acc30tif) or overwrite:
+            subprocess.call(["gdalwarp", "-te", str(xmin), str(ymin), str(xmax),
                          str(ymax), "-overwrite", "-co", "BIGTIFF=YES", _acc, _acc30tif])
 
-        print("converting directions into TAUDEM directions...")
-        directions_tau(dir30tif, dir30tau)
+        if not os.path.exists(dir30tau) or overwrite:
+            print("converting directions into TAUDEM directions...")
+            directions_tau(dir30tif, dir30tau)
 
-        print("calculating area in extent...")
-        calculate_area(dir30tau, are30tif)
+        if not os.path.exists(are30tif) or overwrite:
+            print("calculating area in extent...")
+            calculate_area(dir30tau, are30tif)
 
-        print("getting flow accumulation in km2...")
-        multiply_rasters(_acc30tif, are30tif, acc30tif)
+        if not acc_area and (not os.path.exists(acc30tiff) or overwrite):
+            print("getting flow accumulation in km2...")
+            multiply_rasters(_acc30tif, are30tif, acc30tif)
 
-        print("thresholding accumulation to get river network...")
-        rasterthreshold(acc30tif, thresh, 'Int16', net30tif)
+        if not os.path.exists(net30tif) or overwrite:
+            print("thresholding accumulation to get river network...")
+            rasterthreshold(acc30tif, thresh, 'Int16', net30tif)
 
-        print("masking directions based on river network...")
-        rastermask(dir30tau, net30tif, "Int16", dir30tau_mask)
+        if not os.path.exists(dir30tau_mask) or overwrite:
+            print("masking directions based on river network...")
+            rastermask(dir30tau, net30tif, "Int16", dir30tau_mask)
 
-        print("writing outlets and inland depressions in shapefile...")
-        write_outlets(out30shp, dir30tau_mask)
+        if not os.path.exists(out30shp) or overwrite:
+            print("writing outlets and inland depressions in shapefile...")
+            write_outlets(out30shp, dir30tau_mask)
 
-        print("writing basins file...")
-        subprocess.call(["gagewatershed", "-p", dir30tau,
+        if not os.path.exists(cat30tif) or overwrite:
+            print("writing basins file...")
+            subprocess.call(["gagewatershed", "-p", dir30tau,
                          "-gw", cat30tif, "-o", out30shp])
 
         if streamnet == 'yes':
+            # Streamnet fails if stren_net exists so remove first
+            if os.path.exists(stren_net30d8) and overwrite: 
+                shutil.rmtree(stren_net30d8)
+            if not os.path.exists(stren_net30d8):
+                # PFU: input -fel should be dem for correct slope in output stremnet
+                # BUT we dont have a dem file at 30s
             subprocess.call(["mpiexec", "-n", nproc, "streamnet", "-fel", net30tif, "-p", dir30tau, "-ad8", acc30tif, "-src", net30tif, "-ord",
                              strn_ord30d8, "-tree", strn_tree30d8, "-coord", strn_coord30d8, "-net", stren_net30d8, "-w", stren_w30d8, "-o", out30shp])
 
-        print("creating D4 river network...")
-        d82d4(dir30tau_mask, dir30tau_maskd4, net30tifd4)
+        if not os.path.exists(dir30tau_maskd4) or overwrite:
+            print("creating D4 river network...")
+            d82d4(dir30tau_mask, dir30tau_maskd4, net30tifd4)
 
-        print("writing D4 outlets and inland depression in shapefile...")
-        write_outlets(out30shpd4, dir30tau_maskd4)
+        if not os.path.exists(out30shpd4) or overwrite:
+            print("writing D4 outlets and inland depression in shapefile...")
+            write_outlets(out30shpd4, dir30tau_maskd4)
 
-        print("create flow directions map D4...")
-        create_dir_d4(dir30taud4, dir30tau, dir30tau_maskd4)
+        if not os.path.exists(dir30taud4) or overwrite:
+            print("create flow directions map D4...")
+            create_dir_d4(dir30taud4, dir30tau, dir30tau_maskd4)
 
-        print("writing basins file D4...")
-        subprocess.call(["gagewatershed", "-p", dir30taud4,
+        if not os.path.exists(cat30tifd4) or overwrite:
+            print("writing basins file D4...")
+            subprocess.call(["gagewatershed", "-p", dir30taud4,
                          "-gw", cat30tifd4, "-o", out30shpd4])
 
         if streamnet == 'yes':
+            # Streamnet fails if stren_net exists so remove first
+            if os.path.exists(stren_net30d4) and overwrite: 
+                shutil.rmtree(stren_net30d4)
+            if not os.path.exists(stren_net30d4):
+                # PFU: input -fel should be dem for correct slope in output stremnet
+                # BUT we dont have a dem file at 30s
             subprocess.call(["mpiexec", "-n", nproc, "streamnet", "-fel", net30tifd4, "-p", dir30tau_maskd4, "-ad8", acc30tif, "-src", net30tifd4,
                              "-ord", strn_ord30d4, "-tree", strn_tree30d4, "-coord", strn_coord30d4, "-net", stren_net30d4, "-w", stren_w30d4, "-o", out30shpd4])
 

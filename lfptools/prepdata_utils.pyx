@@ -84,10 +84,33 @@ def cy_directions_tau(np.int16_t[:,:] data, np.int16_t nodata):
                 data[m,n] = nodata
     return data
 
+def remove_loop(np.int16_t[:,:] data, np.int16_t i, np.int16_t j):
+    """
+    Remove section of river until getting to a point which has an upstream point in the network
+    point j,i is the first point to remove, and needs to have its upstream link removed 
+    otherwise this function will not remove any points
+    """
+    cdef np.int16_t[:,:] dirindex = np.array([[0,0],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1],[1,0],[1,1]],dtype=np.int16)
+    cdef np.int16_t[:] reverse_dirn = np.array([-1,5,6,7,8,1,2,3,4],dtype=np.int16)
+    cdef np.int16_t dirn = data[j,i]
+    while dirn != 0:
+        #print('removing point j,i,dirn',j,i,dirn)
+        # Before deleting, first check if this cell has any upstream points (if so, break)
+        for d in range(1,9):
+            if data[j+dirindex[d,0],i+dirindex[d,1]] == reverse_dirn[d]:
+                return
+        # Now remove this cell
+        data[j,i] = 0
+        # Go to next cell
+        j = j + dirindex[dirn,0]
+        i = i + dirindex[dirn,1]
+		# Save direction for next loop
+        dirn = data[j,i]
+
 def cy_d82d4(np.int16_t[:,:] data, np.int16_t nodata):
 
     """
-    Returns direction and river netwrok maps in D4
+    Returns direction and river network maps in D4
     """
 
     cdef np.int32_t M = data.shape[0]
@@ -96,33 +119,147 @@ def cy_d82d4(np.int16_t[:,:] data, np.int16_t nodata):
 
     for m in range(M):
         for n in range(N):
+          
           if data[m,n] == 8:
-            data[m,n] = 7
-            try:
+           try:
+            if data[m+1,n] == 1:
+              data[m,n] = 7
+            elif data[m,n+1] == 7:
+              data[m,n] = 1
+            elif data[m+1,n] == 0:
+              data[m,n] = 7
               data[m+1,n] = 1
-            except:
-              pass
+            elif data[m,n+1] == 0:
+              data[m,n] = 1
+              data[m,n+1] = 7
+            elif data[m+1,n+1] == 3: # straigten this bit (warning, could fail if it is where a tributary joins at this point in the river network)
+              data[m+1,n+1] = 0
+              data[m,n] = 1
+            elif data[m+1,n+1] == 5: # straigten this bit (warning, could fail if it is where a tributary joins at this point in the river network)
+              data[m+1,n+1] = 0
+              data[m,n] = 7
+            elif data[m,n+1] == 5: # straigten this bit (warning, could fail if it is where a tributary joins at this point in the river network)
+                data[m,n] = 0
+                data[m,n+1] = 7
+            elif data[m+1,n] == 3: # straigten this bit (warning, could fail if it is where a tributary joins at this point in the river network)
+                data[m,n] = 0
+                data[m+1,n] = 1
+            # Below conditions are for fixing issues with merit-hydro
+            elif data[m,n+1] == 6: # We have crossed over streamlines (straighten and remove loop)
+                #data[m,n+1] = 0 
+                data[m,n] = 7
+                remove_loop(data,n+1,m+1)
+            elif data[m+1,n] == 2: # We have crossed over streamlines (straighten and remove loop)
+                #data[m+1,n] = 0 
+                data[m,n] = 1
+                remove_loop(data,n+1,m+1)
+            elif data[m+1,n+1] == 6: # Special case, hack to fix specific point (88.135,28.551)
+                print('Special case hack',m,n,data[m,n])
+                data[m,n] = 7
+                remove_loop(data,n+1,m+1)
+            else:
+#              raise Exception('Cant convert from d8 to d4')
+               print('Warning, cant convert from d8 to d4',m,n,data[m,n],data[m+1,n+1])
+               print('D4 Points around:',data[m,n+1],data[m-1,n],data[m,n-1],data[m+1,n])
+           except IndexError:
+                pass
 
           elif data[m,n] == 6:
-            data[m,n] = 7
-            try:
+           try:
+            if data[m+1,n] == 5:
+              data[m,n] = 7
+            elif data[m,n-1] == 7:
+              data[m,n] = 5            
+            elif data[m+1,n] == 0:
+              data[m,n] = 7
               data[m+1,n] = 5
-            except:
-              pass
+            elif data[m,n-1] == 0:
+              data[m,n] = 5
+              data[m,n-1] = 7
+            elif data[m+1,n-1] == 3: # straighten this bit (warning, could fail if it is where a tributary joins at this point in the river network)
+              data[m+1,n-1] = 0
+              data[m,n] = 5
+            elif data[m+1,n-1] == 1: # straighten this bit (warning, could fail if it is where a tributary joins at this point in the river network)
+              data[m+1,n-1] = 0
+              data[m,n] = 7
+#            elif data[m+1,n-1]==7: # Hack for single point in HDMA dataset which fails
+#              data[m,n] = 7
+#              data[m+1,n-1] = 0 
+            elif data[m,n-1] == 1: # straighten this bit (warning, could fail if it is where a tributary joins at this point in the river network)
+              data[m,n] = 0
+              data[m,n-1] = 7
+            elif data[m+1,n] == 3: # straighten this bit (warning, could fail if it is where a tributary joins at this point in the river network)
+              data[m,n] = 0
+              data[m+1,n] = 5
+            else:
+#              raise Exception('Cant convert from d8 to d4')
+               print('Warning, cant convert from d8 to d4',m,n,data[m,n],data[m+1,n-1])
+               print('D4 Points around:',data[m,n+1],data[m-1,n],data[m,n-1],data[m+1,n])
+           except IndexError:
+                #print('IndexError (boundary point)')
+                pass
 
           elif data[m,n] == 4:
-            data[m,n] = 3
-            try:
+           try:
+            if data[m-1,n] == 5:
+              data[m,n] = 3
+            elif data[m,n-1]== 3:
+              data[m,n] = 5
+            elif data[m-1,n] == 0:
+              data[m,n] = 3
               data[m-1,n] = 5
-            except:
-              pass
+            elif data[m,n-1] == 0:
+              data[m,n] = 5
+              data[m,n-1] = 3
+            elif data[m-1,n-1] == 7: # straigten this bit (warning, could fail if it is where a tributary joins at this point in the river network)
+              data[m-1,n-1] = 0
+              data[m,n] = 5
+            elif data[m-1,n-1] == 1: # straighten this bit
+              data[m-1,n-1] = 0
+              data[m,n] = 3
+            elif data[m,n-1] == 1: # straighten this bit
+              data[m,n] = 0
+              data[m,n-1] = 3
+            elif data[m-1,n] == 7: # straighten this bit
+              data[m,n] = 0
+              data[m,n-1] = 5
+            else:
+#              raise Exception('Cant convert from d8 to d4')
+               print('Warning, cant convert from d8 to d4',m,n,data[m,n],data[m-1,n-1])
+               print('D4 Points around:',data[m,n+1],data[m-1,n],data[m,n-1],data[m+1,n])
+           except IndexError:
+                pass
 
           elif data[m,n] == 2:
-            data[m,n] = 3
-            try:
+           try:
+            if data[m-1,n] == 1:
+              data[m,n] = 3
+            elif data[m,n+1]==3:
+              data[m,n] = 1
+            elif data[m-1,n] == 0:
+              data[m,n] = 3
               data[m-1,n] = 1
-            except:
-              pass
+            elif data[m,n+1] == 0:
+              data[m,n] = 1
+              data[m,n+1] = 3
+            elif data[m-1,n+1] == 7:# Straighten this bit
+              data[m-1,n+1] = 0
+              data[m,n] = 1
+            elif data[m-1,n+1] == 5:# Straighten this bit
+              data[m-1,n+1] = 0
+              data[m,n] = 3
+            elif data[m-1,n] == 7:# Straighten this bit
+              data[m,n] = 0
+              data[m-1,n] = 1
+            elif data[m,n+1] == 5:# Straighten this bit
+              data[m,n] = 0
+              data[m,n+1] = 3
+            else:
+#              raise Exception('Cant convert from d8 to d4')
+               print('Warning, cant convert from d8 to d4',m,n,data[m,n],data[m-1,n+1])
+               print('D4 Points around:',data[m,n+1],data[m-1,n],data[m,n-1],data[m+1,n])
+           except IndexError:
+                pass
 
     cdef np.int16_t[:,:] net = np.ones((M,N),dtype=np.int16) * np.greater(data,0)
 
