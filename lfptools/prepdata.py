@@ -102,8 +102,8 @@ def prepdata(argv):
     nproc = str(config.get('prepdata', 'nproc'))
     thresh = np.float64(config.get('prepdata', 'thresh'))
     streamnet = str(config.get('prepdata', 'streamnet'))
-    overwrite = str(config.get('prepdata', 'overwrite'))
-    acc_area = str(config.get('prepdata', 'acc_area'))
+    overwrite = config.get('prepdata', 'overwrite').lower=='True'.lower()
+    acc_area = config.get('prepdata', 'acc_area').lower()=='True'.lower()
 
     # Defining extent
     xmin = te[0]
@@ -216,7 +216,7 @@ def prepdata(argv):
             print("calculating area in extent...")
             calculate_area(dir3tau, are3tif)
 
-         if not acc_area and (not os.path.exists(acc3tiff) or overwrite):
+        if not acc_area and (not os.path.exists(acc3tiff) or overwrite):
             print("getting flow accumulation in km2...")
             multiply_rasters(_acc3tif, are3tif, acc3tif)
 
@@ -322,7 +322,7 @@ def prepdata(argv):
             if not os.path.exists(stren_net30d8):
                 # PFU: input -fel should be dem for correct slope in output stremnet
                 # BUT we dont have a dem file at 30s
-            subprocess.call(["mpiexec", "-n", nproc, "streamnet", "-fel", net30tif, "-p", dir30tau, "-ad8", acc30tif, "-src", net30tif, "-ord",
+                subprocess.call(["mpiexec", "-n", nproc, "streamnet", "-fel", net30tif, "-p", dir30tau, "-ad8", acc30tif, "-src", net30tif, "-ord",
                              strn_ord30d8, "-tree", strn_tree30d8, "-coord", strn_coord30d8, "-net", stren_net30d8, "-w", stren_w30d8, "-o", out30shp])
 
         if not os.path.exists(dir30tau_maskd4) or overwrite:
@@ -349,7 +349,7 @@ def prepdata(argv):
             if not os.path.exists(stren_net30d4):
                 # PFU: input -fel should be dem for correct slope in output stremnet
                 # BUT we dont have a dem file at 30s
-            subprocess.call(["mpiexec", "-n", nproc, "streamnet", "-fel", net30tifd4, "-p", dir30tau_maskd4, "-ad8", acc30tif, "-src", net30tifd4,
+                subprocess.call(["mpiexec", "-n", nproc, "streamnet", "-fel", net30tifd4, "-p", dir30tau_maskd4, "-ad8", acc30tif, "-src", net30tifd4,
                              "-ord", strn_ord30d4, "-tree", strn_tree30d4, "-coord", strn_coord30d4, "-net", stren_net30d4, "-w", stren_w30d4, "-o", out30shpd4])
 
 
