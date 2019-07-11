@@ -55,7 +55,7 @@ def split(argv):
     wthtif : River width GDAL raster
     dirtif : Flow directions GDAL raster
     aretif : Area GDAL raster
-    otltif : Outlets GDAL raster
+    ordtif : river strahler order GDAL raster
     tretxt : Tree file from TAUDEM
     cootxt : Coord file from TAUDEM
     outdir : Out path
@@ -87,7 +87,7 @@ def split(argv):
     nettif = str(config.get('split', 'nettif'))
     wthtif = str(config.get('split', 'wthtif'))
     dirtif = str(config.get('split', 'dirtif'))
-    otltif = str(config.get('split', 'otltif'))
+    ordtif = str(config.get('split', 'ordtif'))
     aretif = str(config.get('split', 'aretif'))
     tretxt = str(config.get('split', 'tretxt'))
     cootxt = str(config.get('split', 'cootxt'))
@@ -104,17 +104,17 @@ def split(argv):
         # Catchments should be numbered and > 0
         for nc in np.unique(catarr[catarr > 0]):
             basinsplit(nc, outdir, cattif, demtif, acctif, nettif,
-                       wthtif, dirtif, aretif, otltif, tretxt, cootxt)
+                       wthtif, dirtif, aretif, ordtif, tretxt, cootxt)
     else:
         # Process a single catchments
         b = basnum.split(',')
         for nc in b:
             print('processing basin number: ' + nc)
             basinsplit(int(nc), outdir, cattif, demtif, acctif, nettif,
-                       wthtif, dirtif, aretif, otltif, tretxt, cootxt)
+                       wthtif, dirtif, aretif, ordtif, tretxt, cootxt)
 
 
-def basinsplit(ncatch, outdir, cattif, demtif, acctif, nettif, wthtif, dirtif, aretif, otltif, tretxt, cootxt):
+def basinsplit(ncatch, outdir, cattif, demtif, acctif, nettif, wthtif, dirtif, aretif, ordtif, tretxt, cootxt):
 
     # Get extend for every catchment and area
     catarr = gdalutils.get_data(cattif)
@@ -127,11 +127,17 @@ def basinsplit(ncatch, outdir, cattif, demtif, acctif, nettif, wthtif, dirtif, a
     # Use gdal to mask out basin in network and direction tifs
     nettmp = 'net_tmp.tif'
     dirtmp = 'dir_tmp.tif'
-    cmd = ['gdal_calc.py','--calc','where(A=='+str(ncatch)+',B,0)','--format','GTiff','--type','Int16','-A',cattif,'--A_band','1','-B',nettif,'--B_band','1','--co','COMPRESS=DEFLATE','--outfile',nettmp]
+    acctmp = 'acc_tmp.tif'
+    ordtmp = 'ord_tmp.tif'
+    cmd = ['gdal_calc.py','--calc','where(B=='+str(ncatch)+',A,0)','--format','GTiff','--type','Int16','--NoDataValue','-9999','-B',cattif,'--B_band','1','-A',nettif,'--A_band','1','--co','COMPRESS=DEFLATE','--outfile',nettmp]
     subprocess.call(cmd)
-    cmd = ['gdal_calc.py','--calc','where(A=='+str(ncatch)+',B,0)','--format','GTiff','--type','Int16','-A',cattif,'--A_band','1','-B',dirtif,'--B_band','1','--co','COMPRESS=DEFLATE','--outfile',dirtmp]
+    cmd = ['gdal_calc.py','--calc','where(B=='+str(ncatch)+',A,0)','--format','GTiff','--type','Int16','--NoDataValue','-9999','-B',cattif,'--B_band','1','-A',dirtif,'--A_band','1','--co','COMPRESS=DEFLATE','--outfile',dirtmp]
     subprocess.call(cmd)
-    print('separated basin for nettif and dirtif')
+    cmd = ['gdal_calc.py','--calc','where(B=='+str(ncatch)+',A,0)','--format','GTiff','--type','Float32','--NoDataValue','-9999','-B',cattif,'--B_band','1','-A',acctif,'--A_band','1','--co','COMPRESS=DEFLATE','--outfile',acctmp]
+    subprocess.call(cmd)
+    cmd = ['gdal_calc.py','--calc','where(B=='+str(ncatch)+',A,0)','--format','GTiff','--type','Int16','--NoDataValue','-9999','-B',cattif,'--B_band','1','-A',ordtif,'--A_band','1','--co','COMPRESS=DEFLATE','--outfile',ordtmp]
+    subprocess.call(cmd)
+    print('separated basin for nettif, dirtif, acctif, wthtif')
 
     catgeo = gdalutils.get_geo(cattif)
     area = gdalutils.get_data(aretif)
@@ -239,6 +245,7 @@ def basinsplit(ncatch, outdir, cattif, demtif, acctif, nettif, wthtif, dirtif, a
             fnamenet = folder + "/" + ncatchstr + "_net.tif"
             fnamewth = folder + "/" + ncatchstr + "_wth.tif"
             fnamedir = folder + "/" + ncatchstr + "_dir.tif"
+            fnameord = folder + "/" + ncatchstr + "_ord.tif"
 
             # Load and write each array before removing it from memory
             demarrcli, demgeocli = gdalutils.clip_raster(
@@ -248,7 +255,7 @@ def basinsplit(ncatch, outdir, cattif, demtif, acctif, nettif, wthtif, dirtif, a
             del(demarrcli,demgeocli)
             
             accarrcli, accgeocli = gdalutils.clip_raster(
-                acctif, xmin, ymin, xmax, ymax)
+                acctmp, xmin, ymin, xmax, ymax)
             gdalutils.write_raster(accarrcli, fnameacc,
                                    accgeocli, "Float32", nodata)
             del(accarrcli,accgeocli)
@@ -262,19 +269,27 @@ def basinsplit(ncatch, outdir, cattif, demtif, acctif, nettif, wthtif, dirtif, a
             dirarrcli, dirgeocli = gdalutils.clip_raster(
                 dirtmp, xmin, ymin, xmax, ymax)
             gdalutils.write_raster(dirarrcli, fnamedir,
-                                   dirgeocli, "Float32", nodata)
+                                   dirgeocli, "Int16", nodata)
             del(dirarrcli,dirgeocli)
 
             netarrcli, netgeocli = gdalutils.clip_raster(
                 nettmp, xmin, ymin, xmax, ymax)
             gdalutils.write_raster(netarrcli, fnamenet,
-                                   netgeocli, "Float32", nodata)
+                                   netgeocli, "Int16", nodata)
             del(netarrcli,netgeocli)
+
+            ordarrcli, ordgeocli = gdalutils.clip_raster(
+                ordtmp, xmin, ymin, xmax, ymax)
+            gdalutils.write_raster(ordarrcli, fnameord,
+                                   ordgeocli, "Int16", nodata)
+            del(ordarrcli,ordgeocli)
 
 
             # Finally delete the nettmp and dirtmp files
             os.remove(nettmp)
             os.remove(dirtmp)
+            os.remove(ordtmp)
+            os.remove(acctmp)
 
         else:
             print("NOT PROCESSED: Number of pixels in river lower than 35 : " +
@@ -311,9 +326,12 @@ def connections(treef, coorf):
             except KeyError:
                 val = i
         tree.replace(val,-1,inplace=True)
-
-    tree = misc_utils.read_tree(treef)
-    coor = misc_utils.read_coord(coorf)
+    try:
+        tree = misc_utils.read_tree(treef)
+        coor = misc_utils.read_coord(coorf)
+    except:
+        tree = misc_utils.read_tree_taudem(treef)
+        coor = misc_utils.read_coord_taudem(coorf)
     tree.set_index('link_no', inplace=True)
 
     # Get outlet link

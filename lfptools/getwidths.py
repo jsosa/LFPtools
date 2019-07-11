@@ -139,7 +139,7 @@ def getwidths(recf, netf, proj, fwidth, output, thresh):
     nodata = -9999
     name1 = output+".shp"
     name2 = output+".tif"
-    subprocess.call(["gdal_rasterize", "-a_nodata", str(nodata), "-of", fmt, "-tr", str(geo[6]), str(geo[7]),
+    subprocess.call(["gdal_rasterize", "-a_nodata", str(nodata), "-of", fmt, "-co", "COMPRESS=DEFLATE","-tr", str(geo[6]), str(geo[7]),
                      "-a", "width", "-a_srs", proj, "-te", str(geo[0]), str(geo[1]), str(geo[2]), str(geo[3]), name1, name2])
 
 

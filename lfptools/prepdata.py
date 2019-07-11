@@ -150,7 +150,7 @@ def prepdata(argv):
     # If input acc is an area, override _acc3tif by the area version (then dont multiply by area)
     if acc_area:
         _acc3tif = acc3tif
-        _acc03tif = acc30tif
+        _acc30tif = acc30tif
 
     net3tif = out+'/net3.tif'
     net30tif = out+'/net30.tif'
@@ -201,6 +201,7 @@ def prepdata(argv):
 
     # Clipping DEM .vrt files
     if not os.path.exists(dem3tif) or overwrite:
+        print('clipping dem to region',xmin,ymin,xmax,ymax)
         subprocess.call(["gdalwarp", "-ot", "Float32", "-te", str(xmin), str(ymin), str(xmax),
                      str(ymax), "-overwrite", "-dstnodata", "-9999", "-co",'COMPRESS=DEFLATE',"-co", "BIGTIFF=YES", _dem, dem3tif])
 
@@ -216,6 +217,8 @@ def prepdata(argv):
         ymin = geo[1] + np.floor((ymin0 - geo[1])/geo[7])*geo[7]
         xmax = geo[2] + np.floor((xmax0 - geo[2])/geo[6])*geo[6]
         ymax = geo[3] + np.floor((ymax0 - geo[3])/geo[7])*geo[7]
+        print('clipping dir and acc fields to region',xmin,ymin,xmax,ymax)
+
         if not os.path.exists(dir3tif) or overwrite:
             subprocess.call(["gdalwarp", "-te", str(xmin), str(ymin), str(xmax),
                          str(ymax), "-overwrite", "-co", "BIGTIFF=YES","-co",'COMPRESS=DEFLATE', _dir, dir3tif])
