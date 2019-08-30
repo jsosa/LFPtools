@@ -84,6 +84,40 @@ def cy_directions_tau(np.int16_t[:,:] data, np.int16_t nodata):
                 data[m,n] = nodata
     return data
 
+def cy_directions_esri(np.int16_t[:,:] data, np.int16_t nodata):
+
+    """
+    Function to use in Shell to change convetion from a DIR file
+    This script changes these numbers to TauDEM convention, 1,2,3...
+	To ESRI convention 128,64,32,.. 
+    """
+
+    cdef np.int32_t M = data.shape[0]
+    cdef np.int32_t N = data.shape[1]
+    cdef np.int32_t n,m
+
+    for m in range(M):
+        for n in range(N):
+            if data[m,n] == 1:
+                data[m,n] = 1
+            elif data[m,n] == 2:
+                data[m,n] = 128
+            elif data[m,n] == 3:
+                data[m,n] = 64
+            elif data[m,n] == 4:
+                data[m,n] = 32
+            elif data[m,n] == 5:
+                data[m,n] = 16
+            elif data[m,n] == 6:
+                data[m,n] = 8
+            elif data[m,n] == 7:
+                data[m,n] = 4
+            elif data[m,n] == 8:
+                data[m,n] = 2
+            else: 
+                data[m,n] = nodata
+    return data
+
 def remove_loop(np.int16_t[:,:] data, np.int16_t i, np.int16_t j):
     """
     Remove section of river until getting to a point which has an upstream point in the network
@@ -161,6 +195,7 @@ def cy_d82d4(np.int16_t[:,:] data, np.int16_t nodata):
 #              raise Exception('Cant convert from d8 to d4')
                print('Warning, cant convert from d8 to d4',m,n,data[m,n],data[m+1,n+1])
                print('D4 Points around:',data[m,n+1],data[m-1,n],data[m,n-1],data[m+1,n])
+               data[m,n] = -1
            except IndexError:
                 pass
 
@@ -195,6 +230,7 @@ def cy_d82d4(np.int16_t[:,:] data, np.int16_t nodata):
 #              raise Exception('Cant convert from d8 to d4')
                print('Warning, cant convert from d8 to d4',m,n,data[m,n],data[m+1,n-1])
                print('D4 Points around:',data[m,n+1],data[m-1,n],data[m,n-1],data[m+1,n])
+               data[m,n] = -1
            except IndexError:
                 #print('IndexError (boundary point)')
                 pass
@@ -227,6 +263,7 @@ def cy_d82d4(np.int16_t[:,:] data, np.int16_t nodata):
 #              raise Exception('Cant convert from d8 to d4')
                print('Warning, cant convert from d8 to d4',m,n,data[m,n],data[m-1,n-1])
                print('D4 Points around:',data[m,n+1],data[m-1,n],data[m,n-1],data[m+1,n])
+               data[m,n] = -1
            except IndexError:
                 pass
 
@@ -258,6 +295,7 @@ def cy_d82d4(np.int16_t[:,:] data, np.int16_t nodata):
 #              raise Exception('Cant convert from d8 to d4')
                print('Warning, cant convert from d8 to d4',m,n,data[m,n],data[m-1,n+1])
                print('D4 Points around:',data[m,n+1],data[m-1,n],data[m,n-1],data[m+1,n])
+               data[m,n] = -1
            except IndexError:
                 pass
 

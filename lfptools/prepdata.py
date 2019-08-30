@@ -19,6 +19,7 @@ from lfptools import shapefile
 from lfptools.prepdata_utils import cy_d82d4
 from lfptools.prepdata_utils import cy_rastermask
 from lfptools.prepdata_utils import cy_directions_tau
+from lfptools.prepdata_utils import cy_directions_esri
 from lfptools.prepdata_utils import cy_rasterthreshold
 from lfptools.prepdata_utils import calc_area
 
@@ -391,6 +392,19 @@ def directions_tau(inputrast, outputrast):
     datatau = cy_directions_tau(np.int16(data), np.int16(nodata))
     gdalutils.write_raster(np.float64(
         datatau), outputrast, datageo, "Int16", nodata)
+
+def directions_esri(inputrast, outputrast):
+    """
+    Function to change convetion from a DIR file
+    This script changes these numbers from TauDEM convention, 1,2,3...
+	to ESRI convention 128,64,32,.. 
+    """
+
+    nodata = -32768
+    data = gdalutils.get_data(inputrast)
+    datageo = gdalutils.get_geo(inputrast)
+    data_esri = cy_directions_esri(np.int16(data), np.int16(nodata))
+    gdalutils.write_raster(np.int16(data_esri), outputrast, datageo, "Int16", nodata)
 
 
 def rasterthreshold(file, thres, fmt, outp):

@@ -137,7 +137,7 @@ def basinsplit(ncatch, outdir, cattif, demtif, acctif, nettif, wthtif, dirtif, a
     subprocess.call(cmd)
     cmd = ['gdal_calc.py','--calc','where(B=='+str(ncatch)+',A,0)','--format','GTiff','--type','Int16','--NoDataValue','-9999','-B',cattif,'--B_band','1','-A',ordtif,'--A_band','1','--co','COMPRESS=DEFLATE','--outfile',ordtmp]
     subprocess.call(cmd)
-    print('separated basin for nettif, dirtif, acctif, wthtif')
+    print('separated basin for nettif, dirtif, acctif, ordtif')
 
     catgeo = gdalutils.get_geo(cattif)
     area = gdalutils.get_data(aretif)
