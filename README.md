@@ -1,5 +1,4 @@
-[![DOI](https://zenodo.org/badge/114779043.svg)](https://zenodo.org/badge/latestdoi/114779043)
-
+[![DOI](https://zenodo.org/badge/114779043.svg)](https://zenodo.org/badge/latestdoi/114779043) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1tAAoNdiQ0VIoSvDMSGdB_r2vLOWKSpHm#offline=true&sandboxMode=true)
 
 # LFPtools
 
