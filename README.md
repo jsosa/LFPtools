@@ -2,7 +2,7 @@
 
 # LFPtools
 
-`LFPtools` is an open-source Python CLI package which encompass most methods commonly used to prepare input data for large scale flood inundation studies using the [LISFLOOD-FP](http://www.bristol.ac.uk/geography/research/hydrology/models/lisflood/) hydrodynamic model.
+`LFPtools` ([Sosa et al., 2019](https://www.sciencedirect.com/science/article/pii/S1364815219307637)) is an open-source Python CLI package which encompass most methods commonly used to prepare input data for large scale flood inundation studies using the [LISFLOOD-FP](http://www.bristol.ac.uk/geography/research/hydrology/models/lisflood/) hydrodynamic model.
 
 ### Installation
 ***
