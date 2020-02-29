@@ -33,7 +33,7 @@ def buildmodel_shell(argv):
     wdttif = str(config.get('buildmodel', 'wdttif')) # input 
     bedtif = str(config.get('buildmodel', 'bedtif')) # input 
     dirtif = str(config.get('buildmodel', 'dirtif')) # input 
-    chantif = config.get('buildmodel', 'chantif',None) # input 
+    chantif = config.get('buildmodel', 'chantif',None) # optional input 
     reccsv = str(config.get('buildmodel', 'reccsv')) # input 
     date1 = str(config.get('buildmodel', 'date1')) # input 
     date2 = str(config.get('buildmodel', 'date2')) # input
@@ -317,7 +317,7 @@ def write_par(parlfp, bcilfp, bdylfp, evaplfp, gaugelfp, stagelfp, dembnktif, wd
                        os.path.basename(chantif).split('.')[0] + '.asc' + "\n")
         if os.path.isfile(dirtif):
             file.write("SGCdirnfile    " +
-                   os.path.basename(chantif).split('.')[0] + '.asc' + "\n")
+                   os.path.basename(dirtif).split('.')[0] + '.asc' + "\n")
 
 
 if __name__ == '__main__':
