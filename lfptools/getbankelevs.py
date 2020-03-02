@@ -9,6 +9,7 @@ import getopt
 import subprocess
 import configparser
 import numpy as np
+import pandas as pd
 from lfptools import shapefile
 import gdalutils
 import gdalutils.extras.haversine as haversine
@@ -40,6 +41,7 @@ Content in config.txt
 ---------------------
 [getbankelevs]
 output   = Shapefile output file path
+recf     = Read `rec` file
 netf     = Target mask file path
 proj     = Output projection in Proj4 format
 outlier  = Outlier detection yes/no
@@ -62,6 +64,7 @@ hrdemf   = High resolution DEM
     config.read(inifile)
 
     output = str(config.get('getbankelevs', 'output'))
+    recf = str(config.get('getbankelevs', 'recf'))
     netf = str(config.get('getbankelevs', 'netf'))
     hrdemf = str(config.get('getbankelevs', 'hrdemf'))
 
@@ -75,9 +78,9 @@ hrdemf   = High resolution DEM
     hrnodata = np.float64(config.get('getbankelevs', 'hrnodata'))
     thresh = np.float64(config.get('getbankelevs', 'thresh'))
 
-    getbankelevs(output,netf,hrdemf,proj,method,hrnodata,thresh,outlier)
+    getbankelevs(output,recf,netf,hrdemf,proj,method,hrnodata,thresh,outlier)
 
-def getbankelevs(output,netf,hrdemf,proj,method,hrnodata,thresh,outlier):
+def getbankelevs(output,recf,netf,hrdemf,proj,method,hrnodata,thresh,outlier):
 
     print("    running getbankelevs.py...")
 
@@ -88,19 +91,15 @@ def getbankelevs(output,netf,hrdemf,proj,method,hrnodata,thresh,outlier):
     w.field('y')
     w.field('elev')
 
-    # coordinates for bank elevations are based in river network mask
-    net = gdalutils.get_data(netf)
-    geo = gdalutils.get_geo(netf)
-    iy, ix = np.where(net > 0)
-    x = geo[8][ix]
-    y = geo[9][iy]
+    # Coordinates for bank elevations are based on the Rec file
+    rec = pd.read_csv(recf)
 
-    for i in range(len(x)):
+    for x, y in zip(rec['lon'], rec['lat']):
 
-        xmin = x[i] - thresh
-        ymin = y[i] - thresh
-        xmax = x[i] + thresh
-        ymax = y[i] + thresh
+        xmin = x - thresh
+        ymin = y - thresh
+        xmax = x + thresh
+        ymax = y + thresh
 
         dem, dem_geo = gdalutils.clip_raster(hrdemf, xmin, ymin, xmax, ymax)
         ddem = np.ma.masked_where(dem == hrnodata, dem)
@@ -109,7 +108,7 @@ def getbankelevs(output,netf,hrdemf,proj,method,hrnodata,thresh,outlier):
             nodata = dem_geo[11]
             dfdem = gdalutils.array_to_pandas(dem, dem_geo, nodata, 'gt')
             arr = haversine.haversine_array(np.array(dfdem['y'].values, dtype='float32'), np.float32(
-                dfdem['x'].values), np.float32(y[i]), np.float32(x[i]))
+                dfdem['x'].values), np.float32(y), np.float32(x))
             dfdem['dis'] = np.array(arr)
             dfdem.sort_values(by='dis', inplace=True)
             elev = dfdem.iloc[0, 2]
@@ -132,8 +131,8 @@ def getbankelevs(output,netf,hrdemf,proj,method,hrnodata,thresh,outlier):
         # Write final file in a shapefile
 
         if np.isfinite(elev):
-            w.point(x[i], y[i])
-            w.record(x[i], y[i], elev)
+            w.point(x, y)
+            w.record(x, y, elev)
 
     w.save("%s.shp" % fname)
 
@@ -144,11 +143,13 @@ def getbankelevs(output,netf,hrdemf,proj,method,hrnodata,thresh,outlier):
     prj.write(srs.ExportToWkt())
     prj.close()
 
+    geo = gdalutils.get_geo(netf)
+
     fmt = "GTiff"
     nodata = -9999
     bnkname1 = output+".shp"
     bnkname2 = output+".tif"
-    subprocess.call(["gdal_rasterize", "-a_nodata", str(nodata), "-of", fmt, "-tr", str(geo[6]), str(geo[7]), "-a",
+    subprocess.call(["gdal_rasterize", "-a_nodata", str(nodata), "-of", fmt, "-co", "COMPRESS=DEFLATE", "-tr", str(geo[6]), str(geo[7]), "-a",
                      "elev", "-a_srs", proj, "-te", str(geo[0]), str(geo[1]), str(geo[2]), str(geo[3]), bnkname1, bnkname2])
 
 

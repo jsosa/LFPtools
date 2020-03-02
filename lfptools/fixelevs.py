@@ -11,6 +11,7 @@ import subprocess
 import configparser
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 from lfptools import shapefile
 from lfptools import misc_utils
 import statsmodels.api as sm
@@ -94,8 +95,8 @@ def fixelevs(source,output,netf,recf,proj,method):
     # Reading XXX_rec.csv file
     rec = pd.read_csv(recf)
 
-    # Database to fix
-    elev = np.array(shapefile.Reader(source).records(), dtype='float64')
+    # Reading XXX_bnk.shp file
+    bnk_gdf = gpd.read_file(source)
 
     # Initiate output shapefile
     w = shapefile.Writer(shapefile.POINT)
@@ -105,12 +106,7 @@ def fixelevs(source,output,netf,recf,proj,method):
 
     # Retrieving bank elevations from XXX_bnk.shp file
     # Values are stored in rec['bnk']
-    bnk = []
-    for i in rec.index:
-        dis, ind = misc_utils.near_euc(elev[:, 0], elev[:, 1], (rec['lon'][i],
-                                                                rec['lat'][i]))
-        bnk.append(elev[ind, 2])
-    rec['bnk'] = bnk
+    rec['bnk'] = bnk_gdf['elev'].astype(float)
 
     # Adjusting bank values, resulting values
     # are stored in rec['bnk_adj']
@@ -147,7 +143,7 @@ def fixelevs(source,output,netf,recf,proj,method):
     fmt = "GTiff"
     name1 = output+".shp"
     name2 = output+".tif"
-    subprocess.call(["gdal_rasterize", "-a_nodata", str(nodata), "-of", fmt, "-tr",
+    subprocess.call(["gdal_rasterize", "-a_nodata", str(nodata), "-of", fmt, "-co", "COMPRESS=DEFLATE", "-tr",
                      str(geo[6]), str(geo[7]), "-a", "elevadj", "-a_srs", proj, "-te", str(geo[0]), str(geo[1]), str(geo[2]), str(geo[3]), name1, name2])
 
 

@@ -11,6 +11,7 @@ import configparser
 import numpy as np
 import pandas as pd
 import gdalutils
+import subprocess
 from lfptools import misc_utils
 
 
@@ -29,9 +30,9 @@ def split(argv):
     To Clip .tif files, it checks outlet direction and increases 0.1 degrees from 
     boundaries but no in the outlet boundary since it will obstruct the outflow.
 
-    There is a “connections” function which finds connections between links. 
-    Basically, creates a NNN_rec.csv file containing all river coordinates, three 
-    classifications: 1) classification per “link” (given by TAUDEM), 2) classification 
+    There is a 'connections' function which finds connections between links. 
+    Basically, creates a NNN_rec.csv file containing all river coordinates, three
+    classifications: 1) classification per 'link' (given by TAUDEM), 2) classification 
     per reach (coordinates belonging to longer link) and 3) classification per 
     downstream link (given by TAUDEM), other features were added like strahler number 
     (given by TAUDEM) and distance to outlet (given by TAUDEM).
@@ -46,7 +47,7 @@ def split(argv):
 
     Inputs:
     -------
-    basnum : Basin number or the keyword “all” to process
+    basnum : Basin number or the keyword 'all' to process
     cattif : A GDAL raster file containing basin numbers (one number per basin)
     demtif : DEM in GDAL raster
     acctif : Accumulation GDAL raster
@@ -54,7 +55,7 @@ def split(argv):
     wthtif : River width GDAL raster
     dirtif : Flow directions GDAL raster
     aretif : Area GDAL raster
-    otltif : Outlets GDAL raster
+    ordtif : river strahler order GDAL raster
     tretxt : Tree file from TAUDEM
     cootxt : Coord file from TAUDEM
     outdir : Out path
@@ -86,7 +87,7 @@ def split(argv):
     nettif = str(config.get('split', 'nettif'))
     wthtif = str(config.get('split', 'wthtif'))
     dirtif = str(config.get('split', 'dirtif'))
-    otltif = str(config.get('split', 'otltif'))
+    ordtif = str(config.get('split', 'ordtif'))
     aretif = str(config.get('split', 'aretif'))
     tretxt = str(config.get('split', 'tretxt'))
     cootxt = str(config.get('split', 'cootxt'))
@@ -103,17 +104,17 @@ def split(argv):
         # Catchments should be numbered and > 0
         for nc in np.unique(catarr[catarr > 0]):
             basinsplit(nc, outdir, cattif, demtif, acctif, nettif,
-                       wthtif, dirtif, aretif, otltif, tretxt, cootxt)
+                       wthtif, dirtif, aretif, ordtif, tretxt, cootxt)
     else:
         # Process a single catchments
         b = basnum.split(',')
         for nc in b:
             print('processing basin number: ' + nc)
             basinsplit(int(nc), outdir, cattif, demtif, acctif, nettif,
-                       wthtif, dirtif, aretif, otltif, tretxt, cootxt)
+                       wthtif, dirtif, aretif, ordtif, tretxt, cootxt)
 
 
-def basinsplit(ncatch, outdir, cattif, demtif, acctif, nettif, wthtif, dirtif, aretif, otltif, tretxt, cootxt):
+def basinsplit(ncatch, outdir, cattif, demtif, acctif, nettif, wthtif, dirtif, aretif, ordtif, tretxt, cootxt):
 
     # Get extend for every catchment and area
     catarr = gdalutils.get_data(cattif)
@@ -123,12 +124,29 @@ def basinsplit(ncatch, outdir, cattif, demtif, acctif, nettif, wthtif, dirtif, a
     except:
         sys.exit('ERROR invalid basin number')
 
+    # Use gdal to mask out basin in network and direction tifs
+    nettmp = 'net_tmp.tif'
+    dirtmp = 'dir_tmp.tif'
+    acctmp = 'acc_tmp.tif'
+    ordtmp = 'ord_tmp.tif'
+    cmd = ['gdal_calc.py','--calc','where(B=='+str(ncatch)+',A,0)','--format','GTiff','--type','Int16','--NoDataValue','-9999','-B',cattif,'--B_band','1','-A',nettif,'--A_band','1','--co','COMPRESS=DEFLATE','--outfile',nettmp]
+    subprocess.call(cmd)
+    cmd = ['gdal_calc.py','--calc','where(B=='+str(ncatch)+',A,0)','--format','GTiff','--type','Int16','--NoDataValue','-9999','-B',cattif,'--B_band','1','-A',dirtif,'--A_band','1','--co','COMPRESS=DEFLATE','--outfile',dirtmp]
+    subprocess.call(cmd)
+    cmd = ['gdal_calc.py','--calc','where(B=='+str(ncatch)+',A,0)','--format','GTiff','--type','Float32','--NoDataValue','-9999','-B',cattif,'--B_band','1','-A',acctif,'--A_band','1','--co','COMPRESS=DEFLATE','--outfile',acctmp]
+    subprocess.call(cmd)
+    cmd = ['gdal_calc.py','--calc','where(B=='+str(ncatch)+',A,0)','--format','GTiff','--type','Int16','--NoDataValue','-9999','-B',cattif,'--B_band','1','-A',ordtif,'--A_band','1','--co','COMPRESS=DEFLATE','--outfile',ordtmp]
+    subprocess.call(cmd)
+    print('separated basin for nettif, dirtif, acctif, ordtif')
+
     catgeo = gdalutils.get_geo(cattif)
     area = gdalutils.get_data(aretif)
-    outlet = gdalutils.get_data(otltif)
-    direc = gdalutils.get_data(dirtif)
+    #outlet = gdalutils.get_data(otltif)
+    #direc = gdalutils.get_data(dirtif)
     row, col = np.where(dat)
     _sum = np.sum(dat*area)
+    # clean up
+    del(catarr,dat,area)
 
     if _sum >= 100:  # be sure basin is larger than 100 Km2
 
@@ -136,52 +154,47 @@ def basinsplit(ncatch, outdir, cattif, demtif, acctif, nettif, wthtif, dirtif, a
         xmax = catgeo[8][max(col)]
         ymin = catgeo[9][max(row)]
         ymax = catgeo[9][min(row)]
+        # Clean up
+        del(row,col)
 
         # Clip input rasters
         netarr_tmp, netgeo_tmp = gdalutils.clip_raster(
-            nettif, xmin, ymin, xmax, ymax)
-        catarr_tmp, catgeo_tmp = gdalutils.clip_raster(
-            cattif, xmin, ymin, xmax, ymax)
+            nettmp, xmin, ymin, xmax, ymax)
+        net_size = (netarr_tmp>0).sum()
+        print('loaded net array')
 
-        # Mask only the catchment and fill with zeros
-        netarr_tmp = np.where(catarr_tmp == ncatch, netarr_tmp, 0)
+        if net_size >= 35:  # be sure river network is long enough
 
-        if netarr_tmp.sum() >= 35:  # be sure river network is long enough
-
-            # Clipping tree and coord files based on nettif > 0, coordinates
+            # Load tree and coord files 
             tree = misc_utils.read_tree_taudem(tretxt)
-            coor = misc_utils.read_coord_taudem(cootxt)
+            lfp_coor = misc_utils.read_coord_taudem(cootxt)
+            lfp_coor.index.name = 'index'
+
+            # Get list of x,y points in river network in basin
             iy, ix = np.where(netarr_tmp > 0)
             Xrav = netgeo_tmp[8][ix]
             Yrav = netgeo_tmp[9][iy]
+            # Clean up memory
+            del(netarr_tmp)
 
-            # Clipping coord file (it may be improved, calculation takes some time)
-            lfp_coor = pd.DataFrame()
-            for i in range(len(Xrav)):
-                dis, ind = misc_utils.near_euc(
-                    coor['lon'].values, coor['lat'].values, (Xrav[i], Yrav[i]))
-                if dis <= 0.01:
-                    lfp_coor = lfp_coor.append(coor.loc[ind, :])
-            lfp_coor = lfp_coor[['lon', 'lat',
-                                 'distance', 'elev', 'contr_area']]
-            lfp_coor.index.name = 'index'
-            lfp_coor.sort_index(inplace=True)
-            # Remove duplicates just in case
-            lfp_coor.drop_duplicates(inplace=True)
-
-            # Clipping tree file
+            # Clipping tree file based on segments within basin
+            print('Clipping tree file')
             lfp_tree = pd.DataFrame()
             for i in tree.index:
                 sta = tree.loc[i, 'start_pnt']
                 end = tree.loc[i, 'end_pnt']
-                lon1 = coor.loc[sta, 'lon']
-                lat1 = coor.loc[sta, 'lat']
-                lon2 = coor.loc[end, 'lon']
-                lat2 = coor.loc[end, 'lat']
+                lon1 = lfp_coor.loc[sta, 'lon']
+                lat1 = lfp_coor.loc[sta, 'lat']
+                lon2 = lfp_coor.loc[end, 'lon']
+                lat2 = lfp_coor.loc[end, 'lat']
+#                dis1, ind1 = misc_utils.near_euc(
+#                    lfp_coor['lon'].values, lfp_coor['lat'].values, (lon1, lat1))
+#                dis2, ind2 = misc_utils.near_euc(
+#                    lfp_coor['lon'].values, lfp_coor['lat'].values, (lon2, lat2))
                 dis1, ind1 = misc_utils.near_euc(
-                    lfp_coor['lon'].values, lfp_coor['lat'].values, (lon1, lat1))
+                    Xrav, Yrav, (lon1, lat1))
                 dis2, ind2 = misc_utils.near_euc(
-                    lfp_coor['lon'].values, lfp_coor['lat'].values, (lon2, lat2))
+                    Xrav, Yrav, (lon2, lat2))
                 # default value 0.01 wasn't able to find link number 3504, this value was increased to 0.012 to find missing link
                 if (dis1 <= 0.012) & (dis2 <= 0.012):
                     lfp_tree = lfp_tree.append(tree.loc[i, :])
@@ -195,10 +208,13 @@ def basinsplit(ncatch, outdir, cattif, demtif, acctif, nettif, wthtif, dirtif, a
             create_out_folder(folder)
 
             # Writing clipped coord and tree files
+            print('Writing text files')
             fnametre = folder + "/" + ncatchstr + "_tre.csv"
             fnamecoo = folder + "/" + ncatchstr + "_coo.csv"
             lfp_coor.to_csv(fnamecoo)
             lfp_tree.to_csv(fnametre, float_format='%i')
+            # clean up memory
+            del(lfp_coor,lfp_tree)
 
             # Creating rec dataframe
             rec = connections(fnametre, fnamecoo)
@@ -212,6 +228,8 @@ def basinsplit(ncatch, outdir, cattif, demtif, acctif, nettif, wthtif, dirtif, a
             xmax = rec['lon'].max()
             ymin = rec['lat'].min()
             ymax = rec['lat'].max()
+            # Clean up memory
+            del(rec)
 
             # Get fixed extent
             # _dir    = getdir(rec,dirtif)
@@ -219,46 +237,63 @@ def basinsplit(ncatch, outdir, cattif, demtif, acctif, nettif, wthtif, dirtif, a
             # xmin,ymin,xmax,ymax = get_extent_outlet(_dirlet,0.1,xmin,ymin,xmax,ymax)
 
             # Clipping rasters
-            demarrcli, demgeocli = gdalutils.clip_raster(
-                demtif, xmin, ymin, xmax, ymax)
-            accarrcli, accgeocli = gdalutils.clip_raster(
-                acctif, xmin, ymin, xmax, ymax)
-            wtharrcli, wthgeocli = gdalutils.clip_raster(
-                wthtif, xmin, ymin, xmax, ymax)
-            dirarrcli, dirgeocli = gdalutils.clip_raster(
-                dirtif, xmin, ymin, xmax, ymax)
-            netarrcli, netgeocli = gdalutils.clip_raster(
-                nettif, xmin, ymin, xmax, ymax)
-            catarrcli, catgeocli = gdalutils.clip_raster(
-                cattif, xmin, ymin, xmax, ymax)
-
-            # Mask only the catchment and fill with zeros
-            netarrcli = np.where(catarrcli == ncatch, netarrcli, 0)
-            dirarrcli = np.where(catarrcli == ncatch, dirarrcli, 0)
-
+            print('Loading and clipping rasters')
+            nodata = -9999
             # Creating output names
             fnamedem = folder + "/" + ncatchstr + "_dem.tif"
             fnameacc = folder + "/" + ncatchstr + "_acc.tif"
             fnamenet = folder + "/" + ncatchstr + "_net.tif"
             fnamewth = folder + "/" + ncatchstr + "_wth.tif"
             fnamedir = folder + "/" + ncatchstr + "_dir.tif"
+            fnameord = folder + "/" + ncatchstr + "_ord.tif"
 
-            # Writing clipped arrays
-            nodata = -9999
+            # Load and write each array before removing it from memory
+            demarrcli, demgeocli = gdalutils.clip_raster(
+                demtif, xmin, ymin, xmax, ymax)
             gdalutils.write_raster(demarrcli, fnamedem,
                                    demgeocli, "Float32", nodata)
+            del(demarrcli,demgeocli)
+            
+            accarrcli, accgeocli = gdalutils.clip_raster(
+                acctmp, xmin, ymin, xmax, ymax)
             gdalutils.write_raster(accarrcli, fnameacc,
                                    accgeocli, "Float32", nodata)
-            gdalutils.write_raster(netarrcli, fnamenet,
-                                   netgeocli, "Float32", nodata)
+            del(accarrcli,accgeocli)
+
+            wtharrcli, wthgeocli = gdalutils.clip_raster(
+                wthtif, xmin, ymin, xmax, ymax)
             gdalutils.write_raster(wtharrcli, fnamewth,
                                    wthgeocli, "Float32", nodata)
+            del(wtharrcli,wthgeocli)
+
+            dirarrcli, dirgeocli = gdalutils.clip_raster(
+                dirtmp, xmin, ymin, xmax, ymax)
             gdalutils.write_raster(dirarrcli, fnamedir,
-                                   dirgeocli, "Float32", nodata)
+                                   dirgeocli, "Int16", nodata)
+            del(dirarrcli,dirgeocli)
+
+            netarrcli, netgeocli = gdalutils.clip_raster(
+                nettmp, xmin, ymin, xmax, ymax)
+            gdalutils.write_raster(netarrcli, fnamenet,
+                                   netgeocli, "Int16", nodata)
+            del(netarrcli,netgeocli)
+
+            ordarrcli, ordgeocli = gdalutils.clip_raster(
+                ordtmp, xmin, ymin, xmax, ymax)
+            gdalutils.write_raster(ordarrcli, fnameord,
+                                   ordgeocli, "Int16", nodata)
+            del(ordarrcli,ordgeocli)
+
+
+            # Finally delete the nettmp and dirtmp files
+            os.remove(nettmp)
+            os.remove(dirtmp)
+            os.remove(ordtmp)
+            os.remove(acctmp)
 
         else:
             print("NOT PROCESSED: Number of pixels in river lower than 35 : " +
-                  str(netarr_tmp.sum()) + " pixels in basin number " + str(ncatch))
+                  str(net_size) + " pixels in basin number " + str(ncatch))
     else:
         print("NOT PROCESSED: Basin area lower than 100 Km2 : " +
               str(_sum) + " KM**2 in basin number " + str(ncatch))
@@ -291,9 +326,12 @@ def connections(treef, coorf):
             except KeyError:
                 val = i
         tree.replace(val,-1,inplace=True)
-
-    tree = misc_utils.read_tree(treef)
-    coor = misc_utils.read_coord(coorf)
+    try:
+        tree = misc_utils.read_tree(treef)
+        coor = misc_utils.read_coord(coorf)
+    except:
+        tree = misc_utils.read_tree_taudem(treef)
+        coor = misc_utils.read_coord_taudem(coorf)
     tree.set_index('link_no', inplace=True)
 
     # Get outlet link

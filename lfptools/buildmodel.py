@@ -26,32 +26,37 @@ def buildmodel_shell(argv):
     config = configparser.SafeConfigParser()
     config.read(inifile)
 
-    parlfp = str(config.get('buildmodel', 'parlfp'))
-    bcilfp = str(config.get('buildmodel', 'bcilfp'))
-    bdylfp = str(config.get('buildmodel', 'bdylfp'))
-    runcsv = str(config.get('buildmodel', 'runcsv'))
-    evaplfp = str(config.get('buildmodel', 'evaplfp'))
-    gaugelfp = str(config.get('buildmodel', 'gaugelfp'))
-    stagelfp = str(config.get('buildmodel', 'stagelfp'))
-    demtif = str(config.get('buildmodel', 'demtif'))
-    dembnktif = str(config.get('buildmodel', 'dembnktif'))
-    dembnktif_1D = str(config.get('buildmodel', 'dembnktif_1D'))
-    fixbnktif = str(config.get('buildmodel', 'fixbnktif'))
-    wdttif = str(config.get('buildmodel', 'wdttif'))
-    bedtif = str(config.get('buildmodel', 'bedtif'))
-    dirtif = str(config.get('buildmodel', 'dirtif'))
-    reccsv = str(config.get('buildmodel', 'reccsv'))
-    date1 = str(config.get('buildmodel', 'date1'))
-    date2 = str(config.get('buildmodel', 'date2'))
+    runcsv = str(config.get('buildmodel', 'runcsv')) # input (discharge not from lfptools)
+
+    demtif = str(config.get('buildmodel', 'demtif'))     # input 
+    fixbnktif = str(config.get('buildmodel', 'fixbnktif')) # input 
+    wdttif = str(config.get('buildmodel', 'wdttif')) # input 
+    bedtif = str(config.get('buildmodel', 'bedtif')) # input 
+    dirtif = str(config.get('buildmodel', 'dirtif')) # input 
+    chantif = config.get('buildmodel', 'chantif',None) # optional input 
+    reccsv = str(config.get('buildmodel', 'reccsv')) # input 
+    date1 = str(config.get('buildmodel', 'date1')) # input 
+    date2 = str(config.get('buildmodel', 'date2')) # input
+
+    dembnktif = str(config.get('buildmodel', 'dembnktif')) # output 
+    dembnktif_1D = str(config.get('buildmodel', 'dembnktif_1D')) # output 
+    evaplfp = str(config.get('buildmodel', 'evaplfp')) # output
+    gaugelfp = str(config.get('buildmodel', 'gaugelfp')) # output
+    stagelfp = str(config.get('buildmodel', 'stagelfp')) # output
+    parlfp = str(config.get('buildmodel', 'parlfp')) # output
+    bcilfp = str(config.get('buildmodel', 'bcilfp')) # output 
+    bdylfp = str(config.get('buildmodel', 'bdylfp')) # output
+    d8dirn = config.getboolean('buildmodel','d8dirn',False)
+    prescribeDirn = config.getboolean('buildmodel', 'prescribeDirn',False)
 
     buildmodel(parlfp, bcilfp, bdylfp, runcsv, evaplfp, gaugelfp, stagelfp,
                demtif, dembnktif, dembnktif_1D, fixbnktif, wdttif,
-               bedtif, dirtif, reccsv, date1, date2)
+               bedtif, dirtif, reccsv, date1, date2, d8dir=d8dirn,prescribeDirn=prescribeDirn,chantif=chantif)
 
 
 def buildmodel(parlfp, bcilfp, bdylfp, runcsv, evaplfp, gaugelfp, stagelfp,
                demtif, dembnktif, dembnktif_1D, fixbnktif, wdttif,
-               bedtif, dirtif, reccsv, date1, date2):
+               bedtif, dirtif, reccsv, date1, date2, d8dirn=False,prescribeDirn=False,chantif=None):
 
     print("    running buildmodel.py...")
 
@@ -61,12 +66,14 @@ def buildmodel(parlfp, bcilfp, bdylfp, runcsv, evaplfp, gaugelfp, stagelfp,
     write_bci(bcilfp, runcsv)
     write_bdy(bdylfp, runcsv, t)
     write_evap(evaplfp, t)
-    write_gauge_stage_all_cells(reccsv, dirtif, wdttif, gaugelfp, stagelfp)
+    #write_gauge_stage_all_cells(reccsv, dirtif, wdttif, gaugelfp, stagelfp)
     burn_banks_dem(dembnktif, demtif, fixbnktif)
     burn_banks_dem_1D(dembnktif_1D, demtif, fixbnktif)
-    write_ascii(dembnktif_1D, wdttif, bedtif, dembnktif)
+    write_ascii(dembnktif_1D, wdttif, bedtif, dembnktif,dirtif,chantif)
+    if prescribeDirn:
+        prescribeDirn = dirtif
     write_par(parlfp, bcilfp, bdylfp, evaplfp, gaugelfp,
-              stagelfp, dembnktif, wdttif, bedtif, t)
+              stagelfp, dembnktif, wdttif, bedtif, t,chantif,d8dirn,prescribeDirn)
 
 
 def write_gauge_stage_all_cells(reccsv, dirtif, wdttif, gaugelfp, stagelfp):
@@ -188,7 +195,7 @@ def write_bci(bcilfp, runcsv):
         f.write('W -9999 9999 FREE' + '\n')
 
 
-def write_ascii(dembnktif_1D, wdttif, bedtif, dembnktif):
+def write_ascii(dembnktif_1D, wdttif, bedtif, dembnktif,dirtif,chantif):
 
     print("     writing ASCII files...")
 
@@ -196,7 +203,7 @@ def write_ascii(dembnktif_1D, wdttif, bedtif, dembnktif):
 
     name2 = dembnktif_1D
     name3 = os.path.splitext(dembnktif_1D)[0]+'.asc'
-    subprocess.call(["gdal_translate", "-of", fmt2, name2, name3])
+    subprocess.call(["gdal_translate", "-of", fmt2,"-co","DECIMAL_PRECISION=2", name2, name3])
 
     name2 = wdttif
     name3 = os.path.splitext(wdttif)[0]+'.asc'
@@ -208,8 +215,16 @@ def write_ascii(dembnktif_1D, wdttif, bedtif, dembnktif):
 
     name2 = dembnktif
     name3 = os.path.splitext(dembnktif)[0]+'.asc'
-    subprocess.call(["gdal_translate", "-of", fmt2, name2, name3])
+    subprocess.call(["gdal_translate", "-of", fmt2,"-co","DECIMAL_PRECISION=2", name2, name3])
 
+    name2 = dirtif
+    name3 = os.path.splitext(dirtif)[0]+'.asc'
+    subprocess.call(["gdal_translate", "-of",fmt2,"-ot",'Int16', name2, name3])
+	
+    if chantif is not None:
+        name2 = chantif
+        name3 = os.path.splitext(chantif)[0]+'.asc'
+        subprocess.call(["gdal_translate", "-of",fmt2,"-ot",'Int16', name2, name3])
 
 def burn_banks_dem(dembnktif, demtif, fixbnktif):
 
@@ -253,13 +268,15 @@ def getdirletter(dirval):
     return dirlet
 
 
-def write_par(parlfp, bcilfp, bdylfp, evaplfp, gaugelfp, stagelfp, dembnktif, wdttif, bedtif, t):
+def write_par(parlfp, bcilfp, bdylfp, evaplfp, gaugelfp, stagelfp, dembnktif, wdttif, bedtif, t, chantif,d8dirn,dirtif):
 
     print("     writing .par file...")
 
     with open(parlfp, "w") as file:
 
         file.write("latlong" + "\n")
+        if d8dirn:
+            file.write("SGCd8" + "\n")
         file.write("dirroot        " +
                    os.path.basename(parlfp).split('.')[0] + "\n")
         file.write("resroot        " +
@@ -277,10 +294,11 @@ def write_par(parlfp, bcilfp, bdylfp, evaplfp, gaugelfp, stagelfp, dembnktif, wd
             file.write("bdyfile        " + os.path.basename(bdylfp) + "\n")
         if os.path.isfile(evaplfp):
             file.write("evaporation    " + os.path.basename(evaplfp) + "\n")
-        if os.path.isfile(gaugelfp):
-            file.write("gaugefile      " + os.path.basename(gaugelfp) + "\n")
-        if os.path.isfile(stagelfp):
-            file.write("stagefile      " + os.path.basename(stagelfp) + "\n")
+		# PFU remove gauge and stage files
+#        if os.path.isfile(gaugelfp):
+#            file.write("gaugefile      " + os.path.basename(gaugelfp) + "\n")
+#        if os.path.isfile(stagelfp):
+#            file.write("stagefile      " + os.path.basename(stagelfp) + "\n")
         if os.path.isfile(dembnktif):
             file.write("DEMfile        " +
                        os.path.basename(dembnktif).split('.')[0] + '.asc' + "\n")
@@ -293,6 +311,13 @@ def write_par(parlfp, bcilfp, bdylfp, evaplfp, gaugelfp, stagelfp, dembnktif, wd
         if os.path.isfile(bedtif):
             file.write("SGCbed         " +
                        os.path.basename(bedtif).split('.')[0] + '.asc' + "\n")
+        if chantif is not None:
+            if os.path.isfile(chantif):
+                file.write("chanmask       " +
+                       os.path.basename(chantif).split('.')[0] + '.asc' + "\n")
+        if os.path.isfile(dirtif):
+            file.write("SGCdirnfile    " +
+                   os.path.basename(dirtif).split('.')[0] + '.asc' + "\n")
 
 
 if __name__ == '__main__':

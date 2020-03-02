@@ -70,29 +70,30 @@ def getbedelevs(bnkf,dptf,netf,output,proj):
 
     bnk = gpd.read_file(bnkf)
     dpt = gpd.read_file(dptf)
+    print('loaded data')
 
-    bnk_buf = gpd.GeoDataFrame(
-        bnk, crs={'init': 'epsg:4326'}, geometry=bnk.buffer(0.001))
+    print('calculating bed from banks and depth')
+    bnk['bedelev'] = bnk['elevadj'].astype(np.float32) - dpt['depth'].astype(np.float32)
+    print(bnk.keys())
+#    print(bnk['bedelev'])
 
-    bed = gpd.sjoin(bnk_buf, dpt, op='intersects')
-
-    bed['bedelev'] = bed['elevadj'].astype(float) - bed['depth'].astype(float)
-
-    bed = bed[['x_left', 'y_left', 'bedelev']]
-    bed.columns = ['x', 'y', 'bedelev']
-
-    mybed = gpd.GeoDataFrame(bed, crs={'init': 'epsg:4326'}, geometry=[
-                             Point(xy) for xy in zip(bed.x.astype(float), bed.y.astype(float))])
-
-    mybed.to_file(output)
+    bed = bnk[['x', 'y', 'geometry','bedelev']]
+#    bnk.columns = ['x', 'y', 'bedelev']
+    print('Writing out data')
+#   Just write bed dataframe to file, rather than creating a new dataframe with the same data
+#   mybed = gpd.GeoDataFrame(bnk, crs={'init': 'epsg:4326'}, geometry=[
+#                             Point(xy) for xy in zip(bed.x.astype(float), bed.y.astype(float))])
+    bed.to_file(output+'.shp')
 
     nodata = -9999
     fmt = "GTiff"
-    name1 = output
-    name2 = os.path.dirname(output) + '/' + \
-        os.path.basename(output).split('.')[0] + '.tif'
+#    name1 = output
+#    name2 = os.path.dirname(output) + '/' + \
+#        os.path.basename(output).split('.')[0] + '.tif'
+    name1 = output + '.shp'
+    name2 = output + '.tif'
     mygeo = gdalutils.get_geo(netf)
-    subprocess.call(["gdal_rasterize", "-a_nodata", str(nodata), "-of", fmt, "-tr", str(mygeo[6]), str(mygeo[7]), "-a",
+    subprocess.call(["gdal_rasterize", "-a_nodata", str(nodata), "-of", fmt,"-ot", "Float32", "-co", "COMPRESS=DEFLATE", "-tr", str(mygeo[6]), str(mygeo[7]), "-a",
                      "bedelev", "-a_srs", proj, "-te", str(mygeo[0]), str(mygeo[1]), str(mygeo[2]), str(mygeo[3]), name1, name2])
 
 

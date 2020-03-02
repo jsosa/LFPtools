@@ -1,19 +1,20 @@
-from . import fixelevs
-from . import getbankelevs
-from . import getbedelevs
-from . import getslopes
-from . import getwidths
-from . import rasterresample
-from . import getdepths
-from . import split
-from . import shapefile
-from . import misc_utils
-from . import prepdata_utils
-from . import utils
-from . import getinflows
-from . import getdischarge
-from . import getrunoff
-from . import buildmodel
+from lfptools import fixelevs
+from lfptools import getbankelevs
+from lfptools import getbedelevs
+from lfptools import getslopes
+from lfptools import getwidths
+from lfptools import rasterresample
+from lfptools import getdepths
+from lfptools import split
+from lfptools import shapefile
+from lfptools import misc_utils
+from lfptools import prepdata_utils # doesn't import properly for some reason?
+from lfptools import utils
+from lfptools import getinflows
+from lfptools import getdischarge
+from lfptools import getrunoff
+from lfptools import buildmodel
+from lfptools import getbankfullq
 
 fixelevs = fixelevs.fixelevs
 getbankelevs = getbankelevs.getbankelevs
@@ -26,3 +27,4 @@ getinflows = getinflows.getinflows
 getdischarge = getdischarge.getdischarge
 getrunoff = getrunoff.getrunoff
 buildmodel = buildmodel.buildmodel
+getbankfullq  = getbankfullq.getbankfullq
