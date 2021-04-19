@@ -236,7 +236,7 @@ def prepdata(argv):
             print("calculating area in extent...")
             calculate_area(dir3tau, are3tif)
 
-        if not acc_area and (not os.path.exists(acc3tiff) or overwrite):
+        if not acc_area and (not os.path.exists(acc3tif) or overwrite):
             print("getting flow accumulation in km2...")
             multiply_rasters(_acc3tif, are3tif, acc3tif)
 
